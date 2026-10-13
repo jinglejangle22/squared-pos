@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "facturador-kiosco",
+      "command": "/usr/local/bin/node server.js",
+      "port": 3000,
+      "cwd": "/Users/mac/Desktop/facturador-kiosco",
+      "env": {
+        "PORT": "3000",
+        "CUIT": "27415789209",
+        "PTO_VTA": "10"
+      }
+    }
+  ]
+}

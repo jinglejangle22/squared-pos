@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin — Mercadito La Bota</title>
+<link rel="icon" type="image/png" href="/logo.png"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #111; color: #f0f0f0; min-height: 100vh; }
+  .top-bar { background: #181818; border-bottom: 2px solid #f5d020; padding: 14px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+  .top-bar img { width: 38px; height: 38px; border-radius: 50%; }
+  .top-bar h1 { margin: 0; font-size: 18px; color: #f5d020; flex: 1; }
+  .top-bar a { color: #aaa; font-size: 13px; text-decoration: none; padding: 7px 14px; border-radius: 6px; border: 1px solid #333; }
+  .top-bar a:hover { background: #222; color: #f5d020; }
+  .layout { display: flex; min-height: calc(100vh - 62px); }
+  .sidebar { width: 220px; background: #161616; border-right: 1px solid #2a2a2a; padding: 20px 0; flex-shrink: 0; }
+  .sidebar .nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; font-size: 14px; color: #ccc; border-left: 3px solid transparent; transition: all .15s; }
+  .sidebar .nav-item:hover { background: #1e1e1e; color: #f0f0f0; }
+  .sidebar .nav-item.active { background: #1e1e1e; color: #f5d020; border-left-color: #f5d020; font-weight: 700; }
+  .sidebar .nav-item .icon { font-size: 18px; }
+  .main { flex: 1; padding: 28px 32px; overflow-x: hidden; }
+  h2 { color: #f5d020; font-size: 16px; margin: 0 0 18px; border-bottom: 2px solid #f5d020; padding-bottom: 8px; }
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .stat-box { flex: 1; min-width: 130px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px 18px; }
+  .stat-box .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .stat-box .val { font-size: 22px; font-weight: 800; color: #f5d020; }
+  .btn { padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background .15s; }
+  .btn-yellow { background: #f5d020; color: #111; }
+  .btn-yellow:hover { background: #e6c100; }
+  .btn-red { background: #3a1111; color: #ff8e8e; border: 1px solid #6a2222; }
+  .btn-red:hover { background: #4a1515; }
+  .btn-gray { background: #2a2a2a; color: #ccc; }
+  .btn-gray:hover { background: #3a3a3a; }
+  .btn-green { background: #1a3a22; color: #5dde7a; border: 1px solid #2a6a3a; }
+  .btn-green:hover { background: #224a2a; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  input, select, textarea { padding: 9px 12px; font-size: 14px; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; color: #f0f0f0; outline: none; }
+  input:focus, select:focus { border-color: #f5d020; }
+  label.lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px; }
+  .form-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+  .fg { display: flex; flex-direction: column; gap: 5px; }
+  .fg.grow { flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #1e1e1e; color: #f5d020; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 10px 12px; text-align: left; border-bottom: 2px solid #2a2a2a; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e1e1e; color: #e0e0e0; vertical-align: middle; }
+  tr:nth-child(odd)  td { background: #111; }
+  tr:nth-child(even) td { background: #2a1a00; }
+  tr:hover td { background: #1e1e1e !important; }
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #2a2a2a; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .badge-ok   { background: #1a3a22; color: #5dde7a; border: 1px solid #2a6a3a; }
+  .badge-warn { background: #3a2200; color: #ff9a3c; border: 1px solid #6a4400; }
+  .badge-off  { background: #2a2a2a; color: #888; }
+  .badge-low  { background: #3a1100; color: #ff6b6b; border: 1px solid #6a2200; }
+  #statusMsg { font-size: 13px; font-weight: 600; min-height: 20px; margin-bottom: 10px; }
+  .ok-msg  { color: #5dde7a; }
+  .err-msg { color: #ff6b6b; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 8000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 28px 32px; width: 560px; max-width: calc(100vw - 40px); max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { margin: 0 0 18px; color: #f5d020; font-size: 17px; }
+  .modal-footer { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .mov-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #222; font-size: 13px; gap: 10px; }
+  @media (max-width: 640px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 0; border-right: none; border-bottom: 1px solid #2a2a2a; }
+    .sidebar .nav-item { flex-direction: column; gap: 4px; font-size: 11px; padding: 10px 12px; border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+    .sidebar .nav-item.active { border-bottom-color: #f5d020; border-left-color: transparent; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <img src="/logo.png" alt="Logo"/>
+  <h1>MERCADITO LA BOTA — Administración</h1>
+  <a href="/pos.html">📱 POS</a>
+  <a href="/">🧾 Facturas</a>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="nav-item active" data-panel="productos"><span class="icon">📦</span> Productos</div>
+    <div class="nav-item" data-panel="stock"><span class="icon">📊</span> Stock</div>
+    <div class="nav-item" data-panel="alertas"><span class="icon">🔔</span> Alertas</div>
+    <div class="nav-item" data-panel="reportes"><span class="icon">📈</span> Reportes</div>
+  </div>
+
+  <div class="main">
+    <div id="statusMsg"></div>
+
+    <!-- PRODUCTOS -->
+    <div class="panel active" id="panel-productos">
+      <h2>📦 Gestión de Productos</h2>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-yellow" onclick="abrirModalProducto()">+ Nuevo producto</button>
+        <button class="btn btn-gray" onclick="abrirImportCSV()" title="Importar productos desde archivo CSV">📥 Importar CSV</button>
+        <button class="btn btn-gray" onclick="descargarPlantillaCSV()" title="Descargar plantilla CSV de ejemplo">📄 Plantilla</button>
+        <input id="search-prod" type="text" placeholder="🔍 Buscar por nombre, código o categoría..." style="flex:1;max-width:380px;" />
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#aaa;cursor:pointer;">
+          <input type="checkbox" id="show-inactive" style="accent-color:#f5d020;" /> Mostrar inactivos
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th>Nombre</th><th>Categoría</th>
+              <th>Costo</th><th>Precio</th><th>Stock</th><th>Mín.</th>
+              <th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="prodBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="panel" id="panel-stock">
+      <h2>📊 Movimientos de Stock</h2>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="fg grow">
+          <label class="lbl">Buscar producto</label>
+          <input id="stock-search" type="text" placeholder="Nombre o código de barras..." />
+        </div>
+        <button class="btn btn-yellow" onclick="buscarStockProd()">Ver movimientos</button>
+      </div>
+      <div id="stock-prod-info" style="margin-bottom:12px;display:none;">
+        <div class="card" id="stock-prod-card"></div>
+      </div>
+      <div id="stock-movements-list"></div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="panel" id="panel-alertas">
+      <h2>🔔 Alertas de Stock Bajo</h2>
+      <button class="btn btn-gray btn-sm" onclick="loadAlertas()" style="margin-bottom:16px;">↻ Actualizar</button>
+      <div id="alertas-list"></div>
+    </div>
+
+    <!-- REPORTES -->
+    <div class="panel" id="panel-reportes">
+      <h2>📈 Reportes</h2>
+      <div class="card">
+        <div style="font-weight:700;color:#f5d020;margin-bottom:12px;">Ventas del día</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="fg"><label class="lbl">Fecha</label><input type="date" id="rep-day-date" /></div>
+          <button class="btn btn-yellow btn-sm" onclick="loadReporteDay()">Consultar</button>
+        </div>
+        <div id="rep-day-result"></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;color:#f5d020;margin-bottom:12px;">Ganancia estimada</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="fg"><label class="lbl">Desde</label><input type="date" id="rep-profit-from" /></div>
+          <div class="fg"><label class="lbl">Hasta</label><input type="date" id="rep-profit-to" /></div>
+          <button class="btn btn-yellow btn-sm" onclick="loadReporteProfit()">Calcular</button>
+        </div>
+        <div id="rep-profit-result"></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;color:#f5d020;margin-bottom:12px;">Productos más vendidos</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;">
+          <div class="fg"><label class="lbl">Últimos días</label>
+            <select id="rep-top-days"><option value="7">7 días</option><option value="30" selected>30 días</option><option value="90">90 días</option></select>
+          </div>
+          <button class="btn btn-yellow btn-sm" onclick="loadReporteTop()">Ver</button>
+        </div>
+        <div id="rep-top-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAR CSV -->
+<div class="modal-overlay" id="modal-import-csv">
+  <div class="modal-box" style="max-width:540px;">
+    <h3>📥 Importar productos desde CSV</h3>
+    <p style="color:#aaa;font-size:13px;margin:0 0 12px;">
+      Columnas reconocidas: <code style="color:#f5d020;">nombre</code>, <code style="color:#f5d020;">precio</code>, <code style="color:#f5d020;">codigo_barras</code>,
+      <code style="color:#f5d020;">stock</code>, <code style="color:#f5d020;">stock_min</code>, <code style="color:#f5d020;">stock_max</code>,
+      <code style="color:#f5d020;">categoria</code>, <code style="color:#f5d020;">costo</code>.<br>
+      Si el producto ya existe (por código de barras o nombre), se <b>actualiza</b>. Si no, se <b>crea</b>.
+    </p>
+    <div style="border:2px dashed #444;border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:14px;"
+         onclick="$('csv-file-input').click()" id="csv-drop-zone">
+      <div style="font-size:2rem;">📂</div>
+      <div style="color:#aaa;font-size:14px;margin-top:6px;">Hacé clic para elegir un archivo <strong style="color:#f5d020;">.csv</strong></div>
+      <div id="csv-file-name" style="color:#f5d020;margin-top:8px;font-size:13px;"></div>
+    </div>
+    <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;" onchange="onCsvFileSelected(this)" />
+    <div id="csv-import-result" style="min-height:36px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;">
+      <button class="btn btn-gray" onclick="cerrarImportCSV()">Cancelar</button>
+      <button class="btn btn-yellow" id="btn-do-import" onclick="ejecutarImportCSV()" disabled>📥 Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRODUCTO -->
+<div class="modal-overlay" id="modal-producto">
+  <div class="modal-box">
+    <h3 id="modal-prod-title">Nuevo producto</h3>
+    <input type="hidden" id="prod-id" />
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Nombre *</label><input id="prod-name" type="text" placeholder="Nombre del producto" style="width:100%;" /></div>
+      <div class="fg"><label class="lbl">Código de barras</label><input id="prod-barcode" type="text" placeholder="7790001234567" style="width:160px;" /></div>
+    </div>
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Categoría</label><input id="prod-category" type="text" placeholder="Ej: Bebidas, Golosinas..." style="width:100%;" /></div>
+      <div class="fg"><label class="lbl">Producto frecuente</label>
+        <select id="prod-is-common" style="width:150px;"><option value="0">No</option><option value="1">Sí (aparece primero)</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Precio de costo $</label><input id="prod-cost" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;" /></div>
+      <div class="fg grow"><label class="lbl">Precio de venta $ *</label><input id="prod-price" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;" /></div>
+    </div>
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Stock actual</label><input id="prod-stock" type="number" min="0" step="1" placeholder="0" style="width:100%;" /></div>
+      <div class="fg grow"><label class="lbl">Stock mínimo (alerta)</label><input id="prod-stock-min" type="number" min="0" step="1" placeholder="5" style="width:100%;" /></div>
+      <div class="fg"><label class="lbl">Estado</label>
+        <select id="prod-active" style="width:120px;"><option value="1">Activo</option><option value="0">Inactivo</option></select>
+      </div>
+    </div>
+    <div id="modal-prod-status" style="font-size:13px;min-height:18px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="cerrarModalProducto()">Cancelar</button>
+      <button class="btn btn-yellow" onclick="guardarProducto()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ENTRADA STOCK -->
+<div class="modal-overlay" id="modal-stock">
+  <div class="modal-box" style="width:400px;">
+    <h3>📥 Entrada / Ajuste de stock</h3>
+    <input type="hidden" id="stock-prod-id" />
+    <div style="margin-bottom:14px;color:#f5d020;font-size:15px;font-weight:700;" id="stock-prod-name-display"></div>
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Cantidad (+ agregar / − ajustar)</label><input id="stock-qty" type="number" step="1" placeholder="Ej: 10 ó -5" style="width:100%;" /></div>
+    </div>
+    <div class="form-row">
+      <div class="fg grow"><label class="lbl">Motivo (opcional)</label><input id="stock-reason" type="text" placeholder="Compra a proveedor, merma, ajuste..." style="width:100%;" /></div>
+    </div>
+    <div id="modal-stock-status" style="font-size:13px;min-height:18px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="cerrarModalStock()">Cancelar</button>
+      <button class="btn btn-green" onclick="guardarEntradaStock()">📥 Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const money = n => '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function esc(s) { return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+
+  function setMsg(msg, type) {
+    const el = $('statusMsg');
+    el.textContent = msg;
+    el.className = type === 'ok' ? 'ok-msg' : type === 'err' ? 'err-msg' : '';
+    if (msg) setTimeout(() => { if (el.textContent === msg) { el.textContent=''; el.className=''; } }, 4000);
+  }
+
+  async function apiFetch(url, opts = {}) {
+    const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+    const j = await r.json().catch(() => null);
+    if (!j || j.ok === false) throw new Error(j?.error || 'HTTP ' + r.status);
+    return j;
+  }
+
+  // Navegación
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      item.classList.add('active');
+      $('panel-' + item.dataset.panel).classList.add('active');
+      if (item.dataset.panel === 'productos') loadProductos();
+      if (item.dataset.panel === 'alertas')   loadAlertas();
+      if (item.dataset.panel === 'reportes')  initReportes();
+    });
+  });
+
+  // ════════ PRODUCTOS ════════
+  let allProducts = [];
+
+  async function loadProductos() {
+    try {
+      const j = await apiFetch('/api/products-full/all');
+      allProducts = j.products || [];
+      renderProductos();
+    } catch (e) { setMsg('Error: ' + e.message, 'err'); }
+  }
+
+  function renderProductos() {
+    const q       = ($('search-prod').value || '').toLowerCase().trim();
+    const showAll = $('show-inactive').checked;
+    const filtered = allProducts.filter(p => {
+      if (!showAll && !p.active) return false;
+      if (!q) return true;
+      return (p.name||'').toLowerCase().includes(q) || (p.barcode||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q);
+    });
+    const tbody = $('prodBody');
+    tbody.innerHTML = '';
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#666;padding:20px;">Sin resultados</td></tr>';
+      return;
+    }
+    for (const p of filtered) {
+      const isLow = p.active && p.stock_current <= p.stock_min;
+      const tr = document.createElement('tr');
+      if (!p.active) tr.style.opacity = '.5';
+      tr.innerHTML = `
+        <td style="font-family:monospace;font-size:12px;color:#aaa;">${esc(p.barcode||'—')}</td>
+        <td><b>${esc(p.name)}</b></td>
+        <td style="color:#888;font-size:12px;">${esc(p.category||'—')}</td>
+        <td style="color:#aaa;">${money(p.cost_price)}</td>
+        <td style="color:#f5d020;font-weight:700;">${money(p.price)}</td>
+        <td><span class="badge ${isLow ? 'badge-low' : p.stock_current > 0 ? 'badge-ok' : 'badge-warn'}">${p.stock_current}</span></td>
+        <td style="color:#666;">${p.stock_min}</td>
+        <td><span class="badge ${p.active ? 'badge-ok' : 'badge-off'}">${p.active ? 'Activo' : 'Inactivo'}</span></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-gray btn-sm" onclick="abrirModalProducto(${p.id})" style="margin-right:4px;">✏️</button>
+          <button class="btn btn-green btn-sm" onclick="abrirModalStock(${p.id},'${esc(p.name)}')" style="margin-right:4px;" title="Entrada de stock">📥</button>
+          <button class="btn btn-red btn-sm" onclick="toggleActivo(${p.id},${p.active})" title="${p.active?'Desactivar':'Activar'}">${p.active ? '🚫' : '✅'}</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  $('search-prod').addEventListener('input', renderProductos);
+  $('show-inactive').addEventListener('change', renderProductos);
+
+  async function toggleActivo(id, current) {
+    if (current && !confirm('¿Desactivar este producto?')) return;
+    try {
+      if (current) {
+        await apiFetch(`/api/products/${id}`, { method: 'DELETE' });
+      } else {
+        const p = allProducts.find(x => x.id === id);
+        await apiFetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...p, active: 1 }) });
+      }
+      setMsg('Producto actualizado.', 'ok');
+      await loadProductos();
+    } catch (e) { setMsg('Error: ' + e.message, 'err'); }
+  }
+
+  function abrirModalProducto(id) {
+    $('modal-prod-status').textContent = '';
+    if (!id) {
+      $('modal-prod-title').textContent = 'Nuevo producto';
+      $('prod-id').value = '';
+      ['prod-name','prod-barcode','prod-category','prod-cost','prod-price','prod-stock'].forEach(f => $(f).value = '');
+      $('prod-stock-min').value = '5';
+      $('prod-is-common').value = '0';
+      $('prod-active').value = '1';
+    } else {
+      const p = allProducts.find(x => x.id === id);
+      if (!p) return;
+      $('modal-prod-title').textContent = 'Editar producto';
+      $('prod-id').value = p.id;
+      $('prod-name').value = p.name;
+      $('prod-barcode').value = p.barcode || '';
+      $('prod-category').value = p.category || '';
+      $('prod-cost').value = p.cost_price || '';
+      $('prod-price').value = p.price || '';
+      $('prod-stock').value = p.stock_current ?? 0;
+      $('prod-stock-min').value = p.stock_min ?? 5;
+      $('prod-is-common').value = p.is_common ? '1' : '0';
+      $('prod-active').value = p.active ? '1' : '0';
+    }
+    $('modal-producto').classList.add('open');
+    setTimeout(() => $('prod-name').focus(), 50);
+  }
+  function cerrarModalProducto() { $('modal-producto').classList.remove('open'); }
+
+  async function guardarProducto() {
+    const id       = $('prod-id').value;
+    const name     = $('prod-name').value.trim();
+    const price    = parseFloat($('prod-price').value) || 0;
+    const cost     = parseFloat($('prod-cost').value) || 0;
+    const barcode  = $('prod-barcode').value.trim() || null;
+    const category = $('prod-category').value.trim() || '';
+    const stockCur = parseInt($('prod-stock').value) || 0;
+    const stockMin = parseInt($('prod-stock-min').value) ?? 5;
+    const isCommon = parseInt($('prod-is-common').value);
+    const active   = parseInt($('prod-active').value);
+    if (!name)     { $('modal-prod-status').innerHTML = '<span style="color:#ff6b6b">El nombre es obligatorio.</span>'; return; }
+    if (price <= 0){ $('modal-prod-status').innerHTML = '<span style="color:#ff6b6b">El precio debe ser mayor a 0.</span>'; return; }
+    const body = { name, price, cost_price: cost, barcode, category, stock_current: stockCur, stock_min: stockMin, is_common: isCommon, active };
+    try {
+      if (id) {
+        const prev = allProducts.find(p => p.id === Number(id));
+        await apiFetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        if (prev && stockCur !== prev.stock_current) {
+          const diff = stockCur - prev.stock_current;
+          await apiFetch('/api/stock/entry', { method: 'POST', body: JSON.stringify({ product_id: Number(id), qty: diff, reason: 'Ajuste manual desde admin' }) }).catch(()=>{});
+        }
+      } else {
+        await apiFetch('/api/products-full', { method: 'POST', body: JSON.stringify(body) });
+      }
+      setMsg('✅ Producto guardado.', 'ok');
+      cerrarModalProducto();
+      await loadProductos();
+    } catch (e) { $('modal-prod-status').innerHTML = `<span style="color:#ff6b6b">Error: ${esc(e.message)}</span>`; }
+  }
+
+  // ════════ STOCK ════════
+  function abrirModalStock(pid, nombre) {
+    $('stock-prod-id').value = pid;
+    $('stock-prod-name-display').textContent = nombre;
+    $('stock-qty').value = '';
+    $('stock-reason').value = '';
+    $('modal-stock-status').textContent = '';
+    $('modal-stock').classList.add('open');
+    setTimeout(() => $('stock-qty').focus(), 50);
+  }
+  function cerrarModalStock() { $('modal-stock').classList.remove('open'); }
+
+  async function guardarEntradaStock() {
+    const pid    = Number($('stock-prod-id').value);
+    const qty    = parseInt($('stock-qty').value);
+    const reason = $('stock-reason').value.trim();
+    if (!qty) { $('modal-stock-status').innerHTML = '<span style="color:#ff6b6b">Ingresá una cantidad.</span>'; return; }
+    try {
+      const j = await apiFetch('/api/stock/entry', { method: 'POST', body: JSON.stringify({ product_id: pid, qty, reason }) });
+      setMsg(`✅ Stock actualizado. Nuevo stock: ${j.product.stock_current}`, 'ok');
+      cerrarModalStock();
+      await loadProductos();
+    } catch (e) { $('modal-stock-status').innerHTML = `<span style="color:#ff6b6b">Error: ${esc(e.message)}</span>`; }
+  }
+
+  async function buscarStockProd() {
+    const q = ($('stock-search').value || '').trim().toLowerCase();
+    if (!q) return;
+    if (!allProducts.length) await loadProductos();
+    const prod = allProducts.find(p => (p.name||'').toLowerCase().includes(q) || (p.barcode||'').includes(q));
+    if (!prod) { $('stock-movements-list').innerHTML = '<span style="color:#888;">Producto no encontrado</span>'; return; }
+    $('stock-prod-card').innerHTML = `
+      <b style="color:#f5d020;font-size:15px;">${esc(prod.name)}</b>
+      <span style="color:#888;font-size:12px;margin-left:10px;">${esc(prod.barcode||'')}</span><br/><br/>
+      Stock actual: <b style="color:${prod.stock_current<=prod.stock_min?'#ff9a3c':'#5dde7a'}">${prod.stock_current}</b>
+      &nbsp;|&nbsp; Mínimo: <span>${prod.stock_min}</span>
+      &nbsp;&nbsp;<button class="btn btn-green btn-sm" onclick="abrirModalStock(${prod.id},'${esc(prod.name)}')">📥 Entrada</button>`;
+    $('stock-prod-info').style.display = 'block';
+    try {
+      const j = await apiFetch(`/api/stock/movements/${prod.id}`);
+      const movs = j.movements || [];
+      if (!movs.length) { $('stock-movements-list').innerHTML = '<span style="color:#888;">Sin movimientos registrados aún.</span>'; return; }
+      const colores = { entrada: '#5dde7a', salida: '#ff6b6b', ajuste: '#f5d020' };
+      $('stock-movements-list').innerHTML = `<div style="font-weight:700;color:#f5d020;margin-bottom:10px;">Últimos ${movs.length} movimientos</div>` +
+        movs.map(m => `<div class="mov-row">
+          <span style="color:${colores[m.type]||'#ccc'};">${m.type==='entrada'?'▲':m.type==='salida'?'▼':'⟳'} ${m.type}</span>
+          <span style="color:${m.qty>=0?'#5dde7a':'#ff6b6b'};font-weight:700;">${m.qty>=0?'+':''}${m.qty}</span>
+          <span style="color:#888;font-size:12px;flex:1;">${esc(m.reason||'—')}</span>
+          ${m.sale_id?`<span style="color:#666;font-size:11px;">Venta #${m.sale_id}</span>`:''}
+          <span style="color:#555;font-size:11px;">${esc((m.created_at||'').slice(0,16))}</span>
+        </div>`).join('');
+    } catch (e) { $('stock-movements-list').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`; }
+  }
+  $('stock-search').addEventListener('keydown', e => { if (e.key === 'Enter') buscarStockProd(); });
+
+  // ════════ ALERTAS ════════
+  async function loadAlertas() {
+    try {
+      const j = await apiFetch('/api/stock/alerts');
+      const el = $('alertas-list');
+      if (!j.alerts.length) { el.innerHTML = '<div style="color:#5dde7a;padding:20px;">✅ Sin alertas de stock bajo.</div>'; return; }
+      el.innerHTML = `<div style="color:#ff9a3c;font-weight:700;margin-bottom:12px;">⚠️ ${j.alerts.length} producto(s) con stock bajo o agotado</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Acción</th></tr></thead>
+          <tbody>${j.alerts.map(p=>`<tr>
+            <td style="font-family:monospace;font-size:12px;color:#aaa;">${esc(p.barcode||'—')}</td>
+            <td><b>${esc(p.name)}</b></td>
+            <td style="color:#888;font-size:12px;">${esc(p.category||'—')}</td>
+            <td><span class="badge badge-low">${p.stock_current}</span></td>
+            <td style="color:#666;">${p.stock_min}</td>
+            <td style="color:#f5d020;">${money(p.price)}</td>
+            <td><button class="btn btn-green btn-sm" onclick="abrirModalStock(${p.id},'${esc(p.name)}')">📥 Reponer</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+    } catch (e) { $('alertas-list').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`; }
+  }
+
+  // ════════ REPORTES ════════
+  function initReportes() {
+    const today = new Date().toISOString().slice(0,10);
+    if (!$('rep-day-date').value)    $('rep-day-date').value = today;
+    if (!$('rep-profit-to').value)   $('rep-profit-to').value = today;
+    if (!$('rep-profit-from').value) { const d=new Date();d.setDate(1);$('rep-profit-from').value=d.toISOString().slice(0,10); }
+  }
+
+  async function loadReporteDay() {
+    const date = $('rep-day-date').value;
+    const pagoLabel = { efectivo:'Efectivo', transferencia:'Transferencia', debito:'Débito', credito:'Crédito', fiado:'Fiado' };
+    try {
+      const j = await apiFetch(`/api/reports/day?date=${date}`);
+      $('rep-day-result').innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+          <div class="stat-box"><div class="lbl">Total del día</div><div class="val">${money(j.totalDia)}</div></div>
+          <div class="stat-box"><div class="lbl">Facturado AFIP</div><div class="val">${money(j.totalFacturado)}</div></div>
+          <div class="stat-box"><div class="lbl">Sin factura</div><div class="val" style="color:#aaa;">${money(j.totalDia-j.totalFacturado)}</div></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Método de pago</th><th>Facturado</th><th>Ventas</th><th>Total</th></tr></thead>
+          <tbody>${j.rows.map(r=>`<tr>
+            <td>${pagoLabel[r.payment_method]||r.payment_method}</td>
+            <td>${r.is_invoiced?'✅ Sí':'—'}</td>
+            <td>${r.qty}</td>
+            <td style="color:#f5d020;font-weight:700;">${money(r.total)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+    } catch (e) { $('rep-day-result').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`; }
+  }
+
+  async function loadReporteProfit() {
+    const from = $('rep-profit-from').value;
+    const to   = $('rep-profit-to').value;
+    try {
+      const j = await apiFetch(`/api/reports/profit?from=${from}&to=${to}`);
+      $('rep-profit-result').innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+          <div class="stat-box"><div class="lbl">Facturación</div><div class="val">${money(j.revenue)}</div></div>
+          <div class="stat-box"><div class="lbl">Costo total</div><div class="val" style="color:#aaa;">${money(j.cost)}</div></div>
+          <div class="stat-box"><div class="lbl">Ganancia estimada</div><div class="val" style="color:#5dde7a;">${money(j.profit)}</div></div>
+          <div class="stat-box"><div class="lbl">Ventas</div><div class="val">${j.ventas}</div></div>
+        </div>
+        <div style="color:#555;font-size:12px;margin-top:8px;">* Solo ventas con precio de costo cargado.</div>`;
+    } catch (e) { $('rep-profit-result').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`; }
+  }
+
+  async function loadReporteTop() {
+    const days = $('rep-top-days').value;
+    try {
+      const j = await apiFetch(`/api/reports/top-products?days=${days}`);
+      const ps = j.products || [];
+      $('rep-top-result').innerHTML = !ps.length ? '<span style="color:#888">Sin datos</span>' : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Producto</th><th>Unidades</th><th>Facturación</th><th>Costo</th><th>Ganancia</th></tr></thead>
+          <tbody>${ps.map(p=>`<tr>
+            <td>${esc(p.product_name)}</td>
+            <td style="font-weight:700;">${p.total_qty}</td>
+            <td style="color:#f5d020;">${money(p.total_revenue)}</td>
+            <td style="color:#aaa;">${money(p.total_cost)}</td>
+            <td style="color:#5dde7a;">${money(p.total_revenue-p.total_cost)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+    } catch (e) { $('rep-top-result').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`; }
+  }
+
+  // ── IMPORTAR CSV ─────────────────────────────────────────────
+  let csvTexto = null;
+
+  function abrirImportCSV() {
+    csvTexto = null;
+    $('csv-file-name').textContent = '';
+    $('csv-import-result').innerHTML = '';
+    $('btn-do-import').disabled = true;
+    $('csv-file-input').value = '';
+    $('modal-import-csv').classList.add('open');
+  }
+  function cerrarImportCSV() {
+    $('modal-import-csv').classList.remove('open');
+  }
+  function onCsvFileSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+    $('csv-file-name').textContent = file.name;
+    $('csv-import-result').innerHTML = '<span style="color:#aaa">Leyendo archivo...</span>';
+    const reader = new FileReader();
+    reader.onload = e => {
+      csvTexto = e.target.result;
+      // Vista previa: primeras 3 filas
+      const lineas = csvTexto.split(/\r?\n/).filter(Boolean).slice(0, 3);
+      $('csv-import-result').innerHTML = `<div style="color:#aaa;font-size:12px;margin-bottom:6px;">Vista previa:</div>`
+        + lineas.map(l => `<div style="font-family:monospace;font-size:11px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l}</div>`).join('')
+        + `<div style="color:#f5d020;margin-top:8px;font-size:13px;">✅ Archivo listo. Hacé clic en Importar.</div>`;
+      $('btn-do-import').disabled = false;
+    };
+    reader.onerror = () => { $('csv-import-result').innerHTML = '<span style="color:#ff6b6b">Error al leer el archivo.</span>'; };
+    reader.readAsText(file, 'UTF-8');
+  }
+  async function ejecutarImportCSV() {
+    if (!csvTexto) return;
+    $('btn-do-import').disabled = true;
+    $('csv-import-result').innerHTML = '<span style="color:#aaa">Importando...</span>';
+    try {
+      const r = await fetch('/api/products/import-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: csvTexto })
+      });
+      const data = await r.json();
+      if (!data.ok) throw new Error(data.error || 'Error desconocido');
+      let html = `<div style="color:#4caf50;font-weight:700;font-size:14px;">✅ Importación completada</div>
+        <div style="color:#ccc;font-size:13px;margin-top:6px;">
+          Creados: <b style="color:#f5d020">${data.created}</b> &nbsp;|&nbsp;
+          Actualizados: <b style="color:#f5d020">${data.updated}</b> &nbsp;|&nbsp;
+          Total: <b style="color:#f5d020">${data.total}</b>
+        </div>`;
+      if (data.errors && data.errors.length) {
+        html += `<div style="color:#ff9800;font-size:12px;margin-top:8px;">Advertencias (${data.errors.length}):<br>`
+          + data.errors.slice(0, 5).map(e => `• ${e}`).join('<br>')
+          + (data.errors.length > 5 ? `<br>...y ${data.errors.length - 5} más` : '')
+          + '</div>';
+      }
+      $('csv-import-result').innerHTML = html;
+      await loadProductos();
+      setTimeout(cerrarImportCSV, 3000);
+    } catch (e) {
+      $('csv-import-result').innerHTML = `<span style="color:#ff6b6b">Error: ${e.message}</span>`;
+      $('btn-do-import').disabled = false;
+    }
+  }
+
+  function descargarPlantillaCSV() {
+    const cabecera = 'nombre,precio,codigo_barras,stock,stock_min,stock_max,categoria,costo';
+    const ejemplo1 = 'Coca Cola 500ml,1200,7790895000123,50,10,200,Bebidas,800';
+    const ejemplo2 = 'Alfajor Oreo,350,,30,5,100,Golosinas,200';
+    const ejemplo3 = 'Agua Mineral 1L,900,7790040000456,80,15,300,Bebidas,550';
+    const csv = [cabecera, ejemplo1, ejemplo2, ejemplo3].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'plantilla_productos.csv';
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  // Cerrar modales con Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { cerrarModalProducto(); cerrarModalStock(); cerrarImportCSV(); }
+  });
+
+  // Arranque
+  loadProductos();
+})();
+</script>
+</body>
+</html>

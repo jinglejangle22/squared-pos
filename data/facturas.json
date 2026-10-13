@@ -1,0 +1,51 @@
+[
+  {
+    "ts": "2026-01-21T15:57:05.735Z",
+    "ambiente": "HOMO",
+    "tipo": "B",
+    "cbteTipo": 6,
+    "ptoVta": 9,
+    "cbteNro": 5,
+    "fecha": "20260121",
+    "receptor": {
+      "docTipo": 99,
+      "docNro": 0,
+      "nombre": "Consumidor Final"
+    },
+    "importes": {
+      "total": 2500,
+      "neto": 2066.12,
+      "iva": 433.88
+    },
+    "cae": {
+      "codigo": "86030001703697",
+      "vto": "20260131"
+    },
+    "htmlPath": "/Users/mac/Desktop/facturador-kiosco/data/salida/facturaB_PV00009_N00000005.html"
+  },
+  {
+    "ts": "2026-01-21T16:17:43.425Z",
+    "ambiente": "HOMO",
+    "tipo": "B",
+    "cbteTipo": 6,
+    "ptoVta": 9,
+    "cbteNro": 6,
+    "fecha": "20260121",
+    "receptor": {
+      "docTipo": 99,
+      "docNro": 0,
+      "nombre": "Consumidor Final"
+    },
+    "importes": {
+      "total": 2500,
+      "neto": 2066.12,
+      "iva": 433.88
+    },
+    "cae": {
+      "codigo": "86030001705851",
+      "vto": "20260131"
+    },
+    "afipQrUrl": "https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNi0wMS0yMSIsImN1aXQiOjI3NDE1Nzg5MjA5LCJwdG9WdGEiOjksInRpcG9DbXAiOjYsIm5yb0NtcCI6NiwiaW1wb3J0ZSI6MjUwMCwibW9uZWRhIjoiUEVTIiwiY3R6IjoxLCJ0aXBvRG9jUmVjIjo5OSwibnJvRG9jUmVjIjowLCJ0aXBvQ29kQXV0IjoiRSIsImNvZEF1dCI6ODYwMzAwMDE3MDU4NTF9",
+    "htmlPath": "/Users/mac/Desktop/facturador-kiosco/data/salida/facturaB_PV00009_N00000006.html"
+  }
+]

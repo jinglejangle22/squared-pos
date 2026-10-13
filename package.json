@@ -1,0 +1,18 @@
+{
+  "name": "squared-pos",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "CUIT=${CUIT:-27415789209} PTO_VTA=${PTO_VTA:-10} node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.4",
+    "express": "^5.2.1",
+    "nodemailer": "^6.9.16",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.3",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  }
+}

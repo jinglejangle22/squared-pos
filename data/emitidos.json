@@ -1,0 +1,28 @@
+[
+  {
+    "ts": "2026-01-21T18:03:33.151Z",
+    "tipo": "B",
+    "ptoVta": 9,
+    "cbteNro": 8,
+    "total": 2500,
+    "neto": 2066.12,
+    "iva": 433.88,
+    "cae": "86030001714183",
+    "vto": "20260131",
+    "html": "data/salida/facturaB_PV00009_N00000008.html",
+    "qr": "https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNi0wMS0yMSIsImN1aXQiOjI3NDE1Nzg5MjA5LCJwdG9WdGEiOjksInRpcG9DbXAiOjYsIm5yb0NtcCI6OCwiaW1wb3J0ZSI6MjUwMCwibW9uZWRhIjoiUEVTIiwiY3R6IjoxLCJ0aXBvRG9jUmVjIjo5OSwibnJvRG9jUmVjIjowLCJ0aXBvQ29kQXV0IjoiRSIsImNvZEF1dCI6ODYwMzAwMDE3MTQxODN9"
+  },
+  {
+    "ts": "2026-01-21T18:07:41.126Z",
+    "tipo": "B",
+    "ptoVta": 9,
+    "cbteNro": 9,
+    "total": 2500,
+    "neto": 2066.12,
+    "iva": 433.88,
+    "cae": "86030001714447",
+    "vto": "20260131",
+    "html": "data/salida/facturaB_PV00009_N00000009.html",
+    "qr": "https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyNi0wMS0yMSIsImN1aXQiOjI3NDE1Nzg5MjA5LCJwdG9WdGEiOjksInRpcG9DbXAiOjYsIm5yb0NtcCI6OSwiaW1wb3J0ZSI6MjUwMCwibW9uZWRhIjoiUEVTIiwiY3R6IjoxLCJ0aXBvRG9jUmVjIjo5OSwibnJvRG9jUmVjIjowLCJ0aXBvQ29kQXV0IjoiRSIsImNvZEF1dCI6ODYwMzAwMDE3MTQ0NDd9"
+  }
+]

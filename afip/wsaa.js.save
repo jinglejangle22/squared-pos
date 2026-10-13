@@ -1,0 +1,97 @@
+node -e 
+"require('./afip/wsaa').getTA().then(()=>console.log('TA 
+OK')).catch(console.error)"
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+
+
+// ================================
+// CONFIGURACIÓN
+// ================================
+const SERVICE = "wsfe"; // servicio AFIP
+const WSAA_URL = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms";
+
+const CERT = path.join(__dirname, "kiosco_homo.crt.pem");
+const KEY = path.join(__dirname, "kiosco_homo.key.pem");
+
+const LTR_XML = path.join(__dirname, "LTR.xml");
+const LTR_CMS = path.join(__dirname, "LTR.cms");
+
+// ================================
+// GENERAR LTR.xml
+// ================================
+function generateLTR() {
+  const now = new Date();
+  const from = new Date(now.getTime() - 5 * 60 * 1000);
+  const to = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<loginTicketRequest version="1.0">
+  <header>
+    <uniqueId>${Math.floor(Date.now() / 1000)}</uniqueId>
+    <generationTime>${from.toISOString()}</generationTime>
+    <expirationTime>${to.toISOString()}</expirationTime>
+  </header>
+  <service>${SERVICE}</service>
+</loginTicketRequest>`;
+
+  fs.writeFileSync(LTR_XML, xml);
+}
+
+// ================================
+// FIRMAR CMS
+// ================================
+function signCMS() {
+  execSync(`
+openssl smime -sign \
+  -signer "${CERT}" \
+  -inkey "${KEY}" \
+  -outform DER \
+  -nodetach \
+  -in "${LTR_XML}" \
+  -out "${LTR_CMS}"
+`);
+}
+
+// ================================
+// OBTENER TA
+// ================================
+async function getTA() {
+  generateLTR();
+  signCMS();
+
+  // leer CMS PEM (BEGIN PKCS7)
+  const cms = fs.readFileSync(path.join(__dirname, 'LTR.cms'), 'utf8').trim();
+
+  const soap = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:wsaa="http://wsaa.view.sua.dvadac.desein.afip.gov">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <wsaa:loginCms>
+      <wsaa:in0><![CDATA[${cms}]]></wsaa:in0>
+    </wsaa:loginCms>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+  const { data } = await axios.post(WSAA_URL, soap, {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "urn:LoginCms",
+    },
+    timeout: 30000,
+  });
+
+  fs.writeFileSync(
+    path.join(__dirname, "TA.xml"),
+    typeof data === "string" ? data : JSON.stringify(data)
+  );
+
+  return data;
+}
+
+
+module.exports = {
+  getTA,
+};

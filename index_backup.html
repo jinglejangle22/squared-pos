@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Caja Kiosco</title>
+<style>
+  body{font-family:sans-serif;padding:20px}
+  table{border-collapse:collapse;width:100%;margin-top:10px}
+  td,th{border-bottom:1px solid #ccc;padding:6px}
+  .right{text-align:right}
+  button{padding:8px 12px;font-size:14px}
+  input{padding:6px;font-size:14px}
+  .ok{color:green;font-weight:bold}
+  .err{color:crimson;font-weight:bold}
+  .pill{display:inline-block;background:#eee;padding:4px 8px;border-radius:10px}
+</style>
+</head>
+<body>
+
+<h1>Caja Kiosco (Carrito)</h1>
+
+<div style="max-width:900px">
+  <div>
+    Producto <input id="product" autocomplete="off" style="width:420px">
+    <div id="suggestions" style="border:1px solid #ddd; max-width:520px; display:none; margin-top:6px; border-radius:8px; overflow:hidden;"></div>
+    <div id="msg" style="margin-top:10px; font-weight:700;"></div>
+  </div>
+
+  <div style="margin-top:10px">
+    Cant <input id="qty" type="number" value="1" style="width:80px">
+    Precio <input id="price" type="number" style="width:120px">
+    <button id="add">Agregar</button>
+  </div>
+
+  <div style="margin-top:10px">
+    <span class="pill">Items: <span id="items">0</span></span>
+    <span class="pill" style="margin-left:8px">Total: $<span id="total">0</span></span>
+    <button id="checkout" style="margin-left:10px">Cerrar venta</button>
+    <button id="clear">Vaciar</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="right">Cant</th>
+        <th class="right">Unit</th>
+        <th class="right">Subtotal</th>
+        <th class="right">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="cart"></tbody>
+  </table>
+
+  <h2>Historial</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Fecha</th><th class="right">Items</th><th class="right">Total</th><th></th></tr></thead>
+    <tbody id="sales"></tbody>
+  </table>
+</div>
+
+<script>
+/** helpers **/
+const $ = (id) => document.getElementById(id);
+
+function money(n){
+  const x = Number(n || 0);
+  return Math.round(x).toString(); // sin decimales para kiosco
+}
+
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, (s) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[s]));
+}
+
+function setMsg(text, ok=true){
+  const box = $("msg");
+  if(!box) return;
+  box.textContent = text || "";
+  box.className = ok ? "ok" : "err";
+}
+
+/** estado **/
+let cart = [];
+let lastResults = [];
+let selectedProduct = null;
+
+/** UI refs **/
+const productInput = $("product");
+const qtyInput = $("qty");
+const priceInput = $("price");
+const suggBox = $("suggestions");
+
+/** sugerencias + teclado **/
+let suggSelectedIdx = -1;
+
+function highlightSuggestion(){
+  if(!suggBox) return;
+  const nodes = Array.from(suggBox.querySelectorAll("div[data-idx]"));
+  nodes.forEach((n,i)=>{
+    n.style.background = (i === suggSelectedIdx) ? "#eef6ff" : "#fff";
+  });
+  if(suggSelectedIdx >= 0 && nodes[suggSelectedIdx]){
+    nodes[suggSelectedIdx].scrollIntoView({ block:"nearest" });
+  }
+}
+
+function closeSuggestions(){
+  suggSelectedIdx = -1;
+  showSuggestions([]);
+}
+
+function showSuggestions(list){
+  if(!suggBox) return;
+
+  if(!list || list.length === 0){
+    suggBox.style.display = "none";
+    suggBox.innerHTML = "";
+    suggSelectedIdx = -1;
+    return;
+  }
+
+  suggBox.style.display = "block";
+  suggBox.innerHTML = list.slice(0, 12).map((p, idx) => {
+    const bc = p.barcode ? String(p.barcode) : "";
+    const bcTxt = bc ? ` <span style="opacity:.65">(${escapeHtml(bc)})</span>` : "";
+    return `
+      <div data-idx="${idx}" style="padding:10px 12px; cursor:pointer; border-bottom:1px solid #eee; background:#fff;">
+        <b>${escapeHtml(p.name)}</b>${bcTxt}
+        <span style="float:right;">$${money(p.price_final)}</span>
+      </div>
+    `;
+  }).join("");
+
+  Array.from(suggBox.querySelectorAll("div[data-idx]")).forEach(div => {
+    div.addEventListener("click", () => {
+      const idx = Number(div.getAttribute("data-idx"));
+      pickProduct(lastResults[idx]);
+      closeSuggestions();
+    });
+    div.addEventListener("mouseenter", () => {
+      suggSelectedIdx = Number(div.getAttribute("data-idx"));
+      highlightSuggestion();
+    });
+  });
+
+  if(suggSelectedIdx < 0) suggSelectedIdx = 0;
+  highlightSuggestion();
+}
+
+function pickProduct(p){
+  selectedProduct = p;
+  productInput.value = p?.name || "";
+  priceInput.value = Number(p?.price_final || 0);
+  setMsg(`✅ Seleccionado: ${p.name} ($${money(p.price_final)})`, true);
+  closeSuggestions();
+  qtyInput.focus();
+  qtyInput.select();
+}
+
+async function searchProducts(term){
+  const q = String(term || "").trim();
+  selectedProduct = null;
+
+  if(q.length < 2){
+    lastResults = [];
+    closeSuggestions();
+    setMsg("");
+    return;
+  }
+
+  try{
+    const res = await fetch(`/api/products?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const rows = (data && data.products) ? data.products : [];
+    lastResults = rows;
+
+    showSuggestions(rows);
+
+    if(rows.length === 0) setMsg("No encontré productos con ese nombre.", false);
+    else setMsg(`Encontré ${rows.length} resultado(s). Elegí uno.`, true);
+  } catch(e){
+    console.error(e);
+    setMsg("Error buscando productos (mirá consola).", false);
+  }
+}
+
+/** eventos input producto **/
+productInput.addEventListener("input", (e) => searchProducts(e.target.value));
+
+productInput.addEventListener("keydown", (e) => {
+  // flechas para moverse en sugerencias
+  if(e.key === "ArrowDown"){
+    if(lastResults.length > 0){
+      e.preventDefault();
+      if(suggSelectedIdx < 0) suggSelectedIdx = 0;
+      else suggSelectedIdx = Math.min(suggSelectedIdx + 1, Math.min(lastResults.length, 12) - 1);
+      showSuggestions(lastResults);
+      highlightSuggestion();
+    }
+    return;
+  }
+
+  if(e.key === "ArrowUp"){
+    if(lastResults.length > 0){
+      e.preventDefault();
+      if(suggSelectedIdx < 0) suggSelectedIdx = 0;
+      else suggSelectedIdx = Math.max(suggSelectedIdx - 1, 0);
+      showSuggestions(lastResults);
+      highlightSuggestion();
+    }
+    return;
+  }
+
+  if(e.key === "Enter"){
+    e.preventDefault();
+
+    // si hay sugerencias, elegir la resaltada (o la 1era)
+    if(lastResults.length > 0){
+      const idx = (suggSelectedIdx >= 0) ? suggSelectedIdx : 0;
+      pickProduct(lastResults[idx]);
+      return;
+    }
+
+    // si ya estaba seleccionado, ir a cantidad
+    if(selectedProduct){
+      qtyInput.focus();
+      return;
+    }
+  }
+
+  if(e.key === "Escape"){
+    e.preventDefault();
+    closeSuggestions();
+  }
+});
+
+// Enter en qty o price = agregar
+qtyInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){ e.preventDefault(); $("add").click(); }
+});
+priceInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){ e.preventDefault(); $("add").click(); }
+});
+
+/** carrito **/
+function render(){
+  let t = 0;
+  const tbody = $("cart");
+  tbody.innerHTML = "";
+
+  cart.forEach((i, idx) => {
+    const s = Number(i.qty) * Number(i.price);
+    t += s;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(i.product)}</td>
+      <td class="right">${i.qty}</td>
+      <td class="right">$${money(i.price)}</td>
+      <td class="right">$${money(s)}</td>
+      <td class="right">
+        <button data-del="${idx}">Eliminar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  $("items").textContent = cart.length;
+  $("total").textContent = money(t);
+
+  document.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.onclick = () => {
+      const idx = Number(btn.getAttribute("data-del"));
+      cart.splice(idx, 1);
+      render();
+      productInput.focus();
+    };
+  });
+}
+
+function cartKey(name, price, barcode){
+  if(barcode) return `bc:${String(barcode)}`;
+  return `np:${String(name).toLowerCase()}|${Number(price)}`;
+}
+
+$("add").onclick = () => {
+  const name = selectedProduct?.name ? selectedProduct.name : productInput.value.trim();
+  const q = Number(qtyInput.value);
+  const pr = (selectedProduct?.price_final != null) ? Number(selectedProduct.price_final) : Number(priceInput.value);
+  const bc = selectedProduct?.barcode ? String(selectedProduct.barcode) : null;
+
+  if(!name || !(q > 0) || !(pr >= 0)){
+    setMsg("⚠️ Completá producto, cantidad y precio.", false);
+    return;
+  }
+
+  // sumar cantidad si ya existe
+  const key = cartKey(name, pr, bc);
+  const existing = cart.find(x => cartKey(x.product, x.price, x.barcode) === key);
+  if(existing){
+    existing.qty = Number(existing.qty) + q;
+  } else {
+    cart.push({ product: name, qty: q, price: pr, barcode: bc });
+  }
+
+  // reset
+  productInput.value = "";
+  priceInput.value = "";
+  qtyInput.value = 1;
+  selectedProduct = null;
+  lastResults = [];
+  closeSuggestions();
+  setMsg("✅ Agregado al carrito", true);
+
+  render();
+  productInput.focus();
+};
+
+$("clear").onclick = () => {
+  cart = [];
+  render();
+  setMsg("Carrito vaciado.", true);
+  productInput.focus();
+};
+
+$("checkout").onclick = async () => {
+  if(cart.length === 0) return;
+
+  try{
+    const payload = {
+      items: cart.map(x => ({ product: x.product, qty: x.qty, unit_price: x.price }))
+    };
+
+    const r = await fetch("/api/sales", {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error || "Error cerrando venta");
+
+    setMsg(`✅ Venta cerrada (ID ${j.id}) Total $${money(j.total)}`, true);
+
+    cart = [];
+    render();
+    loadSales();
+    productInput.focus();
+  } catch(e){
+    console.error(e);
+    setMsg("❌ " + e.message, false);
+  }
+};
+
+async function loadSales(){
+  const r = await fetch("/api/sales");
+  const j = await r.json();
+  $("sales").innerHTML = (j.sales || []).map(s =>
+    `<tr>
+      <td>${s.id}</td>
+      <td>${escapeHtml(s.created_at)}</td>
+      <td class="right">${s.item_count}</td>
+      <td class="right">$${money(s.total)}</td>
+      <td><a target="_blank" href="/ticket/${s.id}">Ticket</a></td>
+    </tr>`
+  ).join("");
+}
+
+// init
+render();
+loadSales();
+productInput.focus();
+</script>
+
+</body>
+</html>

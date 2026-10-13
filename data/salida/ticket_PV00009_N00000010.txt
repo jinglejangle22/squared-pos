@@ -1,0 +1,23 @@
+
+LA BOTA 24 HS
+CUIT: 27415789209
+IVA: Resp. Inscripto
+
+Factura B
+PV 00009  N° 00000010
+Fecha: 21/01/2026
+
+Consumidor Final
+Doc: (99) 0
+
+--------------------------------
+Venta          $ 2066.12
+IVA 21%        $ 433.88
+--------------------------------
+TOTAL          $ 2500.00
+
+CAE: 86030001720776
+Vto CAE: 20260131
+
+Gracias por su compra
+

@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Supervisión en Vivo</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--surface:#111;--surface2:#1a1a1a;--border:#222;--border2:#2a2a2a;
+  --text:#f0f0f0;--muted:#666;--muted2:#444;
+  --yellow:#f5d020;--green:#22c55e;--red:#ef4444;--orange:#f97316;--blue:#3b82f6;
+  --font:'Inter',system-ui,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden;}
+
+/* ── Layout ── */
+.app{display:flex;flex-direction:column;height:100vh;}
+.topbar{display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;}
+.topbar-brand span{color:var(--yellow);}
+.dot-live{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse-green 2s infinite;}
+@keyframes pulse-green{0%,100%{opacity:1}50%{opacity:.4}}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.btn-sm{padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;transition:background .15s;}
+.btn-sm:hover{background:var(--border2);}
+.btn-sm.active{background:var(--yellow);border-color:var(--yellow);color:#000;}
+.btn-danger{background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444;}
+.btn-danger:hover{background:rgba(239,68,68,.25);}
+
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* ── Sidebar ── */
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sidebar-title{padding:14px 16px 8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;}
+.terminal-list{flex:1;overflow-y:auto;padding:0 8px 8px;}
+.term-card{padding:12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:6px;cursor:pointer;transition:border-color .15s,background .15s;}
+.term-card:hover{border-color:var(--border2);background:#222;}
+.term-card.selected{border-color:var(--yellow);background:rgba(245,208,32,.06);}
+.term-card.offline{opacity:.5;}
+.term-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.term-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.term-dot.online{background:var(--green);}
+.term-dot.offline{background:var(--muted);}
+.term-name{font-weight:700;font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.term-meta{font-size:11px;color:var(--muted);display:flex;gap:8px;}
+.term-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;}
+.term-status.venta{background:rgba(34,197,94,.15);color:var(--green);}
+.term-status.idle{background:rgba(102,102,102,.15);color:var(--muted);}
+
+/* ── Content area ── */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.tabs{display:flex;gap:2px;padding:8px 16px 0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);}
+.tab{padding:8px 16px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);border:1px solid transparent;border-bottom:none;transition:all .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--text);background:var(--bg);border-color:var(--border);}
+.tab-content{flex:1;overflow:hidden;display:none;}
+.tab-content.active{display:flex;}
+
+/* ── Live view ── */
+.live-split{display:flex;flex:1;gap:0;overflow:hidden;}
+.live-terminal{flex:1;padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;}
+.live-feed{width:340px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+
+/* Terminal screen preview */
+.screen-wrap{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;position:relative;flex:1;max-height:480px;}
+.screen-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:12px;}
+.screen-body{position:relative;height:100%;min-height:300px;background:var(--surface2);}
+.screen-state{padding:16px;display:flex;flex-direction:column;gap:10px;}
+.state-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border2);}
+.state-label{font-size:11px;color:var(--muted);}
+.state-val{font-size:13px;font-weight:700;}
+.cursor-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+.cursor{position:absolute;width:16px;height:16px;transform:translate(-4px,-4px);transition:left .08s,top .08s;pointer-events:none;z-index:10;}
+.cursor svg{filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
+.click-ripple{position:absolute;width:28px;height:28px;border-radius:50%;border:2px solid var(--yellow);transform:translate(-50%,-50%) scale(0);animation:ripple .5s ease-out forwards;pointer-events:none;}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(1.5);opacity:0;}}
+
+/* Terminal info cards */
+.info-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.info-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px;}
+.info-card-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.info-card-val{font-size:18px;font-weight:900;}
+.info-card-val.green{color:var(--green);}
+.info-card-val.yellow{color:var(--yellow);}
+
+/* Recent events in terminal */
+.events-mini{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;}
+.events-mini-title{padding:10px 14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border2);}
+.events-mini-list{max-height:200px;overflow-y:auto;}
+.event-mini-row{display:flex;align-items:flex-start;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;}
+.event-mini-row:last-child{border-bottom:none;}
+.event-dot{width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.event-time{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.event-detail{flex:1;color:var(--text);}
+
+/* Activity feed */
+.live-feed-title{padding:12px 16px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);flex-shrink:0;}
+.feed-list{flex:1;overflow-y:auto;padding:8px;}
+.feed-item{padding:10px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:6px;animation:slideIn .2s ease-out;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-4px)}}
+.feed-item-time{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:2px;}
+.feed-item-user{font-size:11px;font-weight:700;margin-bottom:4px;}
+.feed-item-action{font-size:12px;color:var(--text);}
+.feed-badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;margin-right:4px;}
+.badge-green{background:rgba(34,197,94,.2);color:var(--green);}
+.badge-orange{background:rgba(249,115,22,.2);color:var(--orange);}
+.badge-red{background:rgba(239,68,68,.2);color:var(--red);}
+.badge-blue{background:rgba(59,130,246,.2);color:var(--blue);}
+.badge-gray{background:rgba(102,102,102,.2);color:var(--muted);}
+
+/* ── Alerts bar ── */
+.alerts-bar{background:var(--surface);border-bottom:1px solid var(--border);overflow:hidden;flex-shrink:0;max-height:0;transition:max-height .3s;}
+.alerts-bar.visible{max-height:48px;}
+.alerts-inner{display:flex;align-items:center;gap:8px;padding:0 16px;height:48px;overflow-x:auto;}
+.alert-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;animation:slideIn .2s ease-out;cursor:pointer;}
+.alert-chip.red{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red);}
+.alert-chip.orange{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);color:var(--orange);}
+.alert-chip.green{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green);}
+
+/* ── Audit log ── */
+.audit-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:16px;}
+.audit-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;flex-shrink:0;}
+.audit-filters input,.audit-filters select{
+  padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:6px;color:var(--text);font-size:12px;outline:none;
+}
+.audit-filters input:focus,.audit-filters select:focus{border-color:var(--yellow);}
+.audit-table-wrap{flex:1;overflow:auto;border:1px solid var(--border2);border-radius:8px;}
+table.audit-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+table.audit-tbl thead{position:sticky;top:0;background:var(--surface);z-index:1;}
+table.audit-tbl th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border2);}
+table.audit-tbl td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);}
+table.audit-tbl tbody tr:hover{background:var(--surface2);}
+table.audit-tbl .code{font-family:monospace;font-size:11px;color:var(--muted);}
+
+/* ── Sessions replay ── */
+.sessions-wrap{flex:1;display:flex;gap:0;overflow:hidden;}
+.sessions-list{width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sessions-list-title{padding:12px 16px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sessions-items{flex:1;overflow-y:auto;padding:8px;}
+.session-item{padding:10px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:6px;cursor:pointer;transition:border-color .15s;}
+.session-item:hover,.session-item.selected{border-color:var(--yellow);}
+.session-item-header{font-size:12px;font-weight:700;margin-bottom:4px;}
+.session-item-meta{font-size:11px;color:var(--muted);}
+.replay-area{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:16px;}
+.replay-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-shrink:0;}
+.replay-title{font-size:14px;font-weight:700;}
+.replay-meta{font-size:11px;color:var(--muted);}
+.replay-controls{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.replay-speed{padding:4px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:11px;}
+.replay-timeline{flex:1;overflow-y:auto;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);}
+.replay-event{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;transition:background .1s;}
+.replay-event.current{background:rgba(245,208,32,.08);border-left:2px solid var(--yellow);}
+.replay-event:last-child{border-bottom:none;}
+.replay-time{color:var(--muted);font-variant-numeric:tabular-nums;width:60px;flex-shrink:0;font-size:10px;}
+.replay-icon{width:20px;flex-shrink:0;text-align:center;}
+.replay-event-text{flex:1;color:var(--text);}
+
+/* ── No terminal selected ── */
+.no-selection{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);}
+.no-selection-icon{font-size:48px;opacity:.3;}
+
+/* ── Login ── */
+.login-overlay{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:32px;width:340px;text-align:center;}
+.login-logo{font-size:32px;margin-bottom:8px;}
+.login-title{font-size:20px;font-weight:900;margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.login-pin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+.pin-btn{padding:16px;border-radius:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:20px;font-weight:700;cursor:pointer;transition:background .1s;}
+.pin-btn:hover,.pin-btn:active{background:#333;}
+.pin-dots{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
+.pin-dot{width:10px;height:10px;border-radius:50%;background:var(--muted2);transition:background .2s;}
+.pin-dot.filled{background:var(--yellow);}
+.login-error{font-size:12px;color:var(--red);min-height:18px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* mobile */
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .live-feed{display:none;}
+  .info-cards{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login overlay ── -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <div class="login-title">Supervisión en Vivo</div>
+    <div class="login-sub">Ingresá tu PIN de administrador</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="login-pin" id="loginPin"></div>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div class="app" id="appRoot" style="display:none;">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="dot-live"></div>
+      <span>Supervisión en Vivo</span>
+    </div>
+    <div id="alertsBar" class="alerts-bar" style="position:relative;max-height:none;border:none;background:none;margin-left:8px;">
+      <div class="alerts-inner" id="alertsInner"></div>
+    </div>
+    <div class="topbar-right">
+      <span id="connectedCount" style="font-size:12px;color:var(--muted);">0 terminales</span>
+      <button class="btn-sm" onclick="clearAlerts()">Limpiar alertas</button>
+      <a href="/pos.html" class="btn-sm" style="text-decoration:none;">← Ir al sistema</a>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Sidebar: terminal list -->
+    <div class="sidebar">
+      <div class="sidebar-title">Terminales</div>
+      <div class="terminal-list" id="terminalList">
+        <div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Sin terminales activas</div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active" data-tab="live">Vista en Vivo</div>
+        <div class="tab" data-tab="activity">Actividad</div>
+        <div class="tab" data-tab="audit">Auditoría</div>
+        <div class="tab" data-tab="sessions">Sesiones</div>
+      </div>
+
+      <!-- TAB: Live -->
+      <div class="tab-content active" id="tab-live">
+        <div class="live-split">
+          <div class="live-terminal" id="liveTerminal">
+            <div class="no-selection" id="noSelection">
+              <div class="no-selection-icon">🖥️</div>
+              <div>Seleccioná una terminal para ver en vivo</div>
+            </div>
+            <!-- Terminal view injected here -->
+          </div>
+          <div class="live-feed">
+            <div class="live-feed-title">Actividad en tiempo real</div>
+            <div class="feed-list" id="feedList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Activity -->
+      <div class="tab-content" id="tab-activity">
+        <div style="flex:1;display:flex;flex-direction:column;padding:16px;gap:12px;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <div style="font-size:13px;font-weight:700;">Línea de tiempo — Hoy</div>
+            <button class="btn-sm" onclick="clearTimeline()">Limpiar</button>
+          </div>
+          <div id="timelineList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+      </div>
+
+      <!-- TAB: Audit -->
+      <div class="tab-content" id="tab-audit">
+        <div class="audit-wrap">
+          <div class="audit-filters">
+            <input type="date" id="af-desde" placeholder="Desde"/>
+            <input type="date" id="af-hasta" placeholder="Hasta"/>
+            <input type="text" id="af-user" placeholder="Usuario..." style="width:140px;"/>
+            <select id="af-action">
+              <option value="">Todas las acciones</option>
+              <option value="login">Login</option>
+              <option value="logout">Logout</option>
+              <option value="venta">Venta</option>
+              <option value="venta_cancelada">Venta cancelada</option>
+              <option value="precio_manual">Cambio de precio</option>
+              <option value="descuento_alto">Descuento alto</option>
+              <option value="entrada_caja">Entrada caja</option>
+              <option value="salida_caja">Salida caja</option>
+              <option value="stock_entrada">Entrada stock</option>
+              <option value="producto_creado">Producto creado</option>
+              <option value="producto_modificado">Producto modificado</option>
+              <option value="producto_eliminado">Producto eliminado</option>
+              <option value="desconexion">Desconexión</option>
+            </select>
+            <button class="btn-sm active" onclick="loadAuditLog()">Buscar</button>
+          </div>
+          <div class="audit-table-wrap">
+            <table class="audit-tbl">
+              <thead>
+                <tr>
+                  <th>Hora</th><th>Usuario</th><th>Sucursal</th>
+                  <th>Acción</th><th>Detalle</th><th>Terminal</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Sessions -->
+      <div class="tab-content" id="tab-sessions">
+        <div class="sessions-wrap">
+          <div class="sessions-list">
+            <div class="sessions-list-title">Sesiones grabadas</div>
+            <div class="sessions-items" id="sessionItems">
+              <div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Cargando...</div>
+            </div>
+          </div>
+          <div class="replay-area" id="replayArea">
+            <div class="no-selection" style="flex:1;">
+              <div class="no-selection-icon">▶️</div>
+              <div>Seleccioná una sesión para reproducirla</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function fmt(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+function fmtDatetime(s) { return String(s||'').slice(0,19).replace('T',' '); }
+
+const ACTION_META = {
+  login:              { icon:'👤', badge:'green',  label:'Inicio de sesión' },
+  logout:             { icon:'🚪', badge:'gray',   label:'Cierre de sesión' },
+  venta:              { icon:'💰', badge:'green',  label:'Venta' },
+  venta_cancelada:    { icon:'❌', badge:'orange', label:'Venta cancelada' },
+  precio_manual:      { icon:'🏷️', badge:'orange', label:'Cambio de precio' },
+  descuento_alto:     { icon:'🎁', badge:'orange', label:'Descuento alto' },
+  entrada_caja:       { icon:'💵', badge:'blue',   label:'Entrada caja' },
+  salida_caja:        { icon:'💸', badge:'blue',   label:'Salida caja' },
+  stock_entrada:      { icon:'📦', badge:'blue',   label:'Entrada stock' },
+  producto_creado:    { icon:'✅', badge:'green',  label:'Producto creado' },
+  producto_modificado:{ icon:'✏️',  badge:'blue',   label:'Producto modificado' },
+  producto_eliminado: { icon:'🗑', badge:'red',    label:'Producto eliminado' },
+  desconexion:        { icon:'📴', badge:'red',    label:'Desconectado' },
+};
+
+function actionMeta(action) {
+  return ACTION_META[action] || { icon:'⚙️', badge:'gray', label: action };
+}
+
+// ── PIN Login ─────────────────────────────────────────────────────────────────
+let pinBuf = '';
+let adminPin = '';
+
+(function buildPinPad() {
+  const pad = $('loginPin');
+  [1,2,3,4,5,6,7,8,9,'⌫',0,'✕'].forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'pin-btn';
+    btn.textContent = d;
+    btn.addEventListener('click', () => pinPress(String(d)));
+    pad.appendChild(btn);
+  });
+})();
+
+function pinPress(d) {
+  if (d === '✕') { pinBuf = ''; updateDots(); return; }
+  if (d === '⌫') { pinBuf = pinBuf.slice(0,-1); updateDots(); return; }
+  if (pinBuf.length >= 4) return;
+  pinBuf += d;
+  updateDots();
+  if (pinBuf.length === 4) { adminPin = pinBuf; connectSocket(pinBuf); }
+}
+
+function updateDots() {
+  document.querySelectorAll('.pin-dot').forEach((el,i) => el.classList.toggle('filled', i < pinBuf.length));
+}
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+let socket = null;
+let terminals = {};
+let selectedTid = null;
+let cursorEl = null;
+
+function connectSocket(pin) {
+  if (socket) { socket.disconnect(); }
+  socket = io({ query: { role:'admin', pin } });
+
+  socket.on('connect', () => {
+    $('loginError').textContent = '';
+  });
+  socket.on('auth_error', (msg) => {
+    pinBuf = ''; updateDots();
+    $('loginError').textContent = '❌ ' + msg;
+    socket.disconnect(); socket = null;
+  });
+  socket.on('terminals_list', (list) => {
+    $('loginOverlay').style.display = 'none';
+    $('appRoot').style.display = 'flex';
+    list.forEach(t => { terminals[t.terminal_id] = t; });
+    renderTerminalList();
+    updateConnectedCount();
+  });
+  socket.on('terminal_update', (t) => {
+    terminals[t.terminal_id] = t;
+    renderTerminalList();
+    updateConnectedCount();
+    if (selectedTid === t.terminal_id) updateLiveCards();
+  });
+  socket.on('audit_event', (ev) => {
+    addFeedItem(ev);
+    addTimelineItem(ev);
+  });
+  socket.on('alert', (a) => {
+    addAlert(a);
+  });
+  socket.on('live_event', (ev) => {
+    handleLiveEvent(ev);
+  });
+}
+
+// ── Terminal list ─────────────────────────────────────────────────────────────
+function renderTerminalList() {
+  const list = $('terminalList');
+  const items = Object.values(terminals);
+  if (!items.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Sin terminales activas</div>';
+    return;
+  }
+  list.innerHTML = items.map(t => `
+    <div class="term-card ${t.status==='offline'?'offline':''} ${selectedTid===t.terminal_id?'selected':''}"
+         onclick="selectTerminal('${esc(t.terminal_id)}')">
+      <div class="term-header">
+        <div class="term-dot ${t.status==='online'?'online':'offline'}"></div>
+        <div class="term-name">${esc(t.user_name || 'Sin usuario')}</div>
+        <span class="term-status ${t.cart_count>0?'venta':'idle'}">${t.cart_count>0?'Vendiendo':'En espera'}</span>
+      </div>
+      <div class="term-meta">
+        <span>${esc(t.sucursal || t.terminal_id.slice(0,8))}</span>
+        <span>·</span>
+        <span>Panel: ${esc(t.panel||'?')}</span>
+        ${t.cart_count>0?`<span>· 🛒 ${t.cart_count} ítem${t.cart_count!==1?'s':''}</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function updateConnectedCount() {
+  const n = Object.values(terminals).filter(t=>t.status==='online').length;
+  $('connectedCount').textContent = n + ' terminal' + (n!==1?'es':'') + ' activa' + (n!==1?'s':'');
+}
+
+function selectTerminal(tid) {
+  if (selectedTid) socket.emit('unwatch_terminal', selectedTid);
+  selectedTid = tid;
+  socket.emit('watch_terminal', tid);
+  renderTerminalList();
+  renderLiveView();
+}
+
+// ── Live view ─────────────────────────────────────────────────────────────────
+function renderLiveView() {
+  const t = terminals[selectedTid];
+  const area = $('liveTerminal');
+  if (!t) { area.innerHTML = ''; $('noSelection').style.display='flex'; return; }
+  $('noSelection') && ($('noSelection').style.display='none');
+
+  area.innerHTML = `
+    <div class="info-cards" id="liveCards">
+      <div class="info-card"><div class="info-card-label">Usuario</div><div class="info-card-val">${esc(t.user_name||'—')}</div></div>
+      <div class="info-card"><div class="info-card-label">Panel</div><div class="info-card-val yellow">${esc(t.panel||'—')}</div></div>
+      <div class="info-card"><div class="info-card-label">Ítems en carrito</div><div class="info-card-val green">${t.cart_count||0}</div></div>
+    </div>
+    <div class="screen-wrap">
+      <div class="screen-header">
+        <div class="term-dot online" id="liveStatusDot"></div>
+        <span id="liveStatusText">${esc(t.user_name||'Terminal')} — ${esc(t.sucursal||t.terminal_id.slice(0,8))}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--muted);">Vista en tiempo real</span>
+      </div>
+      <div class="screen-body" id="screenBody">
+        <div class="screen-state" id="screenState">
+          <div class="state-row"><span class="state-label">Panel activo</span><span class="state-val" id="s-panel">${esc(t.panel||'ventas')}</span></div>
+          <div class="state-row"><span class="state-label">Modal abierto</span><span class="state-val" id="s-modal">${t.modal_open||'—'}</span></div>
+          <div class="state-row"><span class="state-label">Carrito</span><span class="state-val green" id="s-cart">${t.cart_count||0} ítems · $${(t.total||0).toLocaleString('es-AR')}</span></div>
+          <div class="state-row"><span class="state-label">Último campo</span><span class="state-val" id="s-field" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">—</span></div>
+          <div class="state-row"><span class="state-label">Último texto</span><span class="state-val" id="s-input" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">—</span></div>
+        </div>
+        <div class="cursor-layer" id="cursorLayer">
+          <div class="cursor" id="liveCursor" style="left:50%;top:50%;">
+            <svg width="16" height="20" viewBox="0 0 16 20"><path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" fill="white" stroke="black" stroke-width="1"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="events-mini">
+      <div class="events-mini-title">Eventos recientes en esta terminal</div>
+      <div class="events-mini-list" id="termEventsList"></div>
+    </div>
+  `;
+}
+
+function updateLiveCards() {
+  const t = terminals[selectedTid];
+  if (!t) return;
+  if ($('s-panel'))  $('s-panel').textContent  = t.panel || '—';
+  if ($('s-modal'))  $('s-modal').textContent  = t.modal_open || '—';
+  if ($('s-cart'))   $('s-cart').textContent   = `${t.cart_count||0} ítems · $${(t.total||0).toLocaleString('es-AR')}`;
+  const cards = $('liveCards');
+  if (cards) {
+    const vals = cards.querySelectorAll('.info-card-val');
+    if (vals[0]) vals[0].textContent = t.user_name || '—';
+    if (vals[1]) vals[1].textContent = t.panel || '—';
+    if (vals[2]) vals[2].textContent = t.cart_count || 0;
+  }
+}
+
+function handleLiveEvent(ev) {
+  if (ev.terminal_id !== selectedTid) return;
+  if (ev.type === 'mouse') {
+    const layer = $('cursorLayer');
+    if (!layer) return;
+    const cur = $('liveCursor');
+    if (cur) { cur.style.left = ev.x + '%'; cur.style.top = ev.y + '%'; }
+  } else if (ev.type === 'click') {
+    const layer = $('cursorLayer');
+    if (layer) {
+      const rip = document.createElement('div');
+      rip.className = 'click-ripple';
+      rip.style.left = ev.x + '%';
+      rip.style.top  = ev.y + '%';
+      layer.appendChild(rip);
+      setTimeout(() => rip.remove(), 600);
+    }
+    addTermEvent({ icon:'👆', text: `Click en "${esc(ev.target||'')}"` });
+  } else if (ev.type === 'input') {
+    if ($('s-field')) $('s-field').textContent = ev.label || '—';
+    if ($('s-input')) $('s-input').textContent = ev.value || '';
+    addTermEvent({ icon:'⌨️', text: `[${esc(ev.label||'campo')}]: ${esc(ev.value||'')}` });
+  } else if (ev.type === 'nav') {
+    if ($('s-panel')) $('s-panel').textContent = ev.panel || '?';
+    addTermEvent({ icon:'📋', text: `Navegó a: ${esc(ev.panel||'')}` });
+  } else if (ev.type === 'modal') {
+    if ($('s-modal')) $('s-modal').textContent = ev.modal || '—';
+    addTermEvent({ icon:'🪟', text: `Modal: ${esc(ev.modal||'')}` });
+  } else if (ev.type === 'scroll') {
+    // silent
+  }
+}
+
+function addTermEvent({ icon, text }) {
+  const list = $('termEventsList');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'event-mini-row';
+  row.innerHTML = `
+    <div class="event-dot" style="background:var(--yellow)"></div>
+    <div class="event-time">${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+    <div class="event-detail">${icon} ${text}</div>`;
+  list.insertBefore(row, list.firstChild);
+  if (list.children.length > 30) list.lastChild.remove();
+}
+
+// ── Feed & Timeline ───────────────────────────────────────────────────────────
+const MAX_FEED = 80;
+
+function addFeedItem(ev) {
+  const m = actionMeta(ev.action);
+  const feed = $('feedList');
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  el.innerHTML = `
+    <div class="feed-item-time">${fmtDatetime(ev.created_at) || fmt(ev.ts||Date.now())}</div>
+    <div class="feed-item-user">${esc(ev.user||'—')} · ${esc(ev.sucursal||ev.terminal_id?.slice(0,8)||'')}</div>
+    <div class="feed-item-action"><span class="feed-badge badge-${m.badge}">${m.icon} ${m.label}</span>${esc(ev.detail||'')}</div>`;
+  feed.insertBefore(el, feed.firstChild);
+  if (feed.children.length > MAX_FEED) feed.lastChild.remove();
+}
+
+const timelineItems = [];
+function addTimelineItem(ev) {
+  timelineItems.unshift(ev);
+  const m = actionMeta(ev.action);
+  const list = $('timelineList');
+  const el = document.createElement('div');
+  el.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;';
+  el.innerHTML = `
+    <div style="font-size:20px;line-height:1;margin-top:2px;">${m.icon}</div>
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);">${fmtDatetime(ev.created_at)||fmt(ev.ts||Date.now())}</span>
+        <span class="feed-badge badge-${m.badge}">${m.label}</span>
+        ${ev.sucursal?`<span style="font-size:10px;color:var(--muted);">${esc(ev.sucursal)}</span>`:''}
+      </div>
+      <div style="font-size:13px;"><strong>${esc(ev.user||'—')}</strong> — ${esc(ev.detail||'')}</div>
+    </div>`;
+  list.insertBefore(el, list.firstChild);
+  if (list.children.length > 200) list.lastChild.remove();
+}
+
+function clearTimeline() { $('timelineList').innerHTML = ''; timelineItems.length = 0; }
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+const alertChips = [];
+function addAlert({ level, msg, ts }) {
+  const inner = $('alertsInner');
+  const chip = document.createElement('div');
+  chip.className = `alert-chip ${level}`;
+  chip.textContent = msg;
+  chip.title = 'Click para descartar';
+  chip.onclick = () => chip.remove();
+  inner.insertBefore(chip, inner.firstChild);
+  alertChips.push(chip);
+  if (alertChips.length > 10) alertChips.shift()?.remove();
+}
+function clearAlerts() { $('alertsInner').innerHTML = ''; alertChips.length = 0; }
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    $('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'audit') loadAuditLog();
+    if (tab.dataset.tab === 'sessions') loadSessions();
+  });
+});
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+async function loadAuditLog() {
+  const params = new URLSearchParams();
+  const desde = $('af-desde').value; if (desde) params.set('desde', desde);
+  const hasta = $('af-hasta').value; if (hasta) params.set('hasta', hasta);
+  const user = $('af-user').value.trim(); if (user) params.set('user', user);
+  const action = $('af-action').value; if (action) params.set('action', action);
+  params.set('limit', '500');
+  try {
+    const r = await fetch('/api/audit/log?' + params);
+    const j = await r.json();
+    renderAuditTable(j.rows || []);
+  } catch(e) { console.error(e); }
+}
+
+function renderAuditTable(rows) {
+  const m_map = {};
+  Object.entries(ACTION_META).forEach(([k,v]) => m_map[k]=v);
+  $('auditBody').innerHTML = rows.length ? rows.map(row => {
+    const m = actionMeta(row.action);
+    return `<tr>
+      <td class="code">${fmtDatetime(row.created_at)}</td>
+      <td><strong>${esc(row.user_name||'—')}</strong>${row.user_role?` <span style="font-size:10px;color:var(--muted);">(${row.user_role})</span>`:''}
+      </td>
+      <td>${esc(row.sucursal||'—')}</td>
+      <td><span class="feed-badge badge-${m.badge}">${m.icon} ${m.label}</span></td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(row.detail||'—')}</td>
+      <td class="code">${esc(row.terminal_id?.slice(0,12)||'—')}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Sin registros</td></tr>';
+}
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+let currentSession = null;
+let replayTimer = null;
+let replayIdx = 0;
+
+async function loadSessions() {
+  const r = await fetch('/api/audit/sessions');
+  const j = await r.json();
+  const items = $('sessionItems');
+  const sessions = j.sessions || [];
+  items.innerHTML = sessions.length ? sessions.map(s => `
+    <div class="session-item ${currentSession?.terminal_id===s.terminal_id&&currentSession?.session_date===s.session_date?'selected':''}"
+         onclick="selectSession('${esc(s.terminal_id)}','${s.session_date}','${esc(s.user_name||'')}')">
+      <div class="session-item-header">${esc(s.user_name||s.terminal_id.slice(0,8))}</div>
+      <div class="session-item-meta">${s.session_date} · ${s.event_count} eventos</div>
+      <div class="session-item-meta">${s.start_time?.slice(11,16)||''} – ${s.end_time?.slice(11,16)||''}</div>
+    </div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Sin sesiones grabadas</div>';
+}
+
+async function selectSession(tid, date, user) {
+  currentSession = { terminal_id: tid, session_date: date, user_name: user };
+  const r = await fetch(`/api/audit/session/${encodeURIComponent(tid)}/${date}`);
+  const j = await r.json();
+  renderReplay(j.events || [], user, date);
+}
+
+function renderReplay(events, user, date) {
+  const area = $('replayArea');
+  if (!events.length) {
+    area.innerHTML = '<div class="no-selection" style="flex:1;"><div class="no-selection-icon">📭</div><div>Sin eventos en esta sesión</div></div>';
+    return;
+  }
+  const EVENT_ICONS = { click:'👆', input:'⌨️', nav:'📋', modal:'🪟', scroll:'🖱️' };
+  area.innerHTML = `
+    <div class="replay-header">
+      <div>
+        <div class="replay-title">${esc(user||'Usuario')} — ${date}</div>
+        <div class="replay-meta">${events.length} eventos grabados</div>
+      </div>
+    </div>
+    <div class="replay-timeline" id="replayTimeline">
+      ${events.map((ev,i) => {
+        let payload = {};
+        try { payload = JSON.parse(ev.payload||'{}'); } catch(_) {}
+        const icon = EVENT_ICONS[ev.event_type] || '⚙️';
+        let text = ev.event_type;
+        if (ev.event_type==='click') text = `Click en "${esc(payload.target||'')}"`;
+        else if (ev.event_type==='input') text = `[${esc(payload.label||'campo')}]: ${esc(payload.value||'')}`;
+        else if (ev.event_type==='nav') text = `Navegó a: ${esc(payload.panel||'')}`;
+        else if (ev.event_type==='modal') text = `Modal: ${esc(payload.modal||'')}`;
+        return `<div class="replay-event" id="re-${i}">
+          <div class="replay-time">${(ev.created_at||'').slice(11,19)}</div>
+          <div class="replay-icon">${icon}</div>
+          <div class="replay-event-text">${text}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const today = new Date().toISOString().slice(0,10);
+$('af-desde').value = today;
+$('af-hasta').value = today;
+</script>
+</body>
+</html>

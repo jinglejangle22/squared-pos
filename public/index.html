@@ -1,0 +1,1428 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MERCADITO LA BOTA - Facturas Online</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #111; color: #f0f0f0; min-height: 100vh; }
+
+    /* Header */
+    .header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .header img { width:46px; height:46px; border-radius:50%; object-fit:cover; }
+    .header h1 { margin:0; font-size:22px; color:#f5d020; }
+
+    /* Layout */
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+    label { display:flex; gap:8px; align-items:center; color:#ccc; font-size:14px; }
+
+    /* Inputs */
+    input { padding:9px 11px; font-size:14px; background:#1e1e1e; border:1px solid #333; border-radius:6px; color:#f0f0f0; outline:none; }
+    input:focus { border-color:#f5d020; }
+
+    /* Buttons */
+    button { padding:9px 16px; font-size:14px; cursor:pointer; border:none; border-radius:6px; background:#2a2a2a; color:#f0f0f0; transition:background .15s; }
+    button:hover { background:#3a3a3a; }
+    #checkoutBtn { background:#f5d020; color:#111; font-weight:bold; padding:10px 20px; }
+    #checkoutBtn:hover { background:#e6c100; }
+
+    /* Pills */
+    .pill { padding:7px 13px; border-radius:18px; background:#1e1e1e; border:1px solid #2e2e2e; font-size:14px; color:#ccc; }
+    .pill b { color:#f5d020; }
+
+    /* Status */
+    #status { margin:10px 0; font-size:14px; font-weight:bold; min-height:20px; }
+    .err  { color:#ff6b6b; }
+    .ok   { color:#5dde7a; }
+    .small { font-size:12px; color:#888; }
+
+    /* Tables */
+    table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
+    th, td { border:1px solid #1a1a1a; padding:9px 10px; text-align:left; }
+    th { background:#1a1a1a; color:#f5d020; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.4px; }
+    td { color:#e0e0e0; }
+    /* Filas alternadas historial: negro / amarillo visible */
+    #historyBody tr:nth-child(odd)  td { background:#111; }
+    #historyBody tr:nth-child(even) td { background:#2a1a00; }
+    #historyBody tr:hover td { background:#3d2600; }
+    /* Carrito igual */
+    #cartBody tr:nth-child(odd)  td { background:#111; }
+    #cartBody tr:nth-child(even) td { background:#2a1a00; }
+    #cartBody tr:hover td { background:#3d2600; }
+    a { color:#f5d020; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    /* Tabla responsive */
+    .table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    /* Títulos de sección */
+    h2 { color:#f5d020; font-size:15px; margin:26px 0 10px; border-bottom:2px solid #f5d020; padding-bottom:6px; }
+
+    /* Stats */
+    .stats-grid { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .stat-card { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:12px 16px; min-width:160px; }
+    .stat-card .label { font-size:12px; color:#888; margin-bottom:4px; }
+    .stat-card .value { font-size:22px; font-weight:700; color:#f5d020; }
+
+    /* AFIP alert */
+    #afip-alert { display:none; background:#2a1800; border:1px solid #ff6b00; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:14px; align-items:center; gap:12px; flex-wrap:wrap; color:#ffcc99; }
+    #retryBtn { background:#ff6b00; color:#fff; padding:6px 14px; font-size:13px; }
+    #retryBtn:hover { background:#e05e00; }
+
+    /* Hamburger button */
+    #hamburger {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      border-radius: 6px;
+    }
+    #hamburger:hover { background: #222; }
+    #hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: #f5d020;
+      border-radius: 2px;
+      transition: all .25s;
+    }
+
+    /* Drawer overlay */
+    #drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 7000;
+    }
+    #drawer-overlay.open { display: block; }
+
+    /* Drawer */
+    #drawer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 340px;
+      max-width: 90vw;
+      height: 100vh;
+      background: #181818;
+      border-right: 1px solid #2a2a2a;
+      z-index: 7100;
+      transform: translateX(-100%);
+      transition: transform .28s ease;
+      overflow-y: auto;
+      padding: 0;
+    }
+    #drawer.open { transform: translateX(0); }
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid #2a2a2a;
+      background: #111;
+      position: sticky;
+      top: 0;
+    }
+    .drawer-header h2 { margin:0; font-size:16px; color:#f5d020; border:none; padding:0; }
+    #drawerClose {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    #drawerClose:hover { color:#fff; background:#333; }
+    .drawer-body { padding: 20px; }
+    .drawer-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #ccc;
+      font-size: 15px;
+      margin-bottom: 4px;
+      transition: background .15s;
+    }
+    .drawer-menu-item:hover { background: #222; color: #fff; }
+    .drawer-menu-item .icon { font-size: 20px; }
+    #resumen-panel { padding-top: 10px; }
+
+    /* AFIP badges */
+    .badge-pending { display:inline-block; background:#ff6b00; color:#fff; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:10px; }
+    .badge-ok { display:inline-block; background:#1a3a22; color:#5dde7a; font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #2a6a3a; }
+
+    /* Login */
+    #login-screen { position:fixed; inset:0; background:rgba(0,0,0,0.97); display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:9999; }
+    #login-card { width:320px; max-width:calc(100vw - 40px); background:#181818; border:1px solid #333; border-radius:14px; padding:28px; box-shadow:0 10px 40px rgba(0,0,0,.7); text-align:center; }
+    #login-card img { width:80px; height:80px; border-radius:50%; margin-bottom:14px; object-fit:cover; }
+    #login-card h2 { margin:0 0 6px; font-size:22px; color:#f5d020; }
+    #login-card p  { margin:0 0 18px; color:#888; font-size:13px; }
+    #login-card input { width:100%; padding:12px; font-size:16px; margin-bottom:12px; background:#111; border:1px solid #333; border-radius:6px; color:#fff; }
+    #login-card button { width:100%; padding:12px; font-size:16px; background:#f5d020; color:#111; font-weight:bold; border-radius:6px; }
+    #login-card button:hover { background:#e6c100; }
+    #login-error { color:#ff8e8e; margin-top:10px; min-height:18px; font-size:13px; }
+
+    /* Add form */
+    .add-form {
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      background: rgba(245, 208, 32, 0.07);
+      border: 1px solid rgba(245, 208, 32, 0.30);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 0 18px rgba(245, 208, 32, 0.06);
+    }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group label { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:.5px; }
+    .form-group select {
+      padding: 10px 12px;
+      font-size: 15px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #f0f0f0;
+      min-width: 260px;
+      outline: none;
+      cursor: pointer;
+    }
+    .form-group select:focus { border-color: #f5d020; }
+    .form-group input { font-size:18px; font-weight:bold; color:#f5d020; width:180px; }
+    #addBtn {
+      background: #f5d020;
+      color: #111;
+      font-weight: bold;
+      font-size: 15px;
+      padding: 11px 22px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    #addBtn:hover { background: #e6c100; }
+
+    /* Cart actions bar */
+    .cart-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    /* Confirmation modal */
+    #confirm-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.85);
+      z-index: 8888;
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-modal.show { display:flex; }
+    #confirm-card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 32px 36px;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.8);
+    }
+    #confirm-card h3 { margin:0 0 10px; font-size:20px; color:#f0f0f0; }
+    #confirm-card p  { color:#aaa; font-size:15px; margin:0 0 24px; }
+    #confirm-card .monto { font-size:32px; font-weight:bold; color:#f5d020; display:block; margin:10px 0 20px; }
+    .confirm-btns { display:flex; gap:12px; justify-content:center; }
+    #confirmYes { background:#f5d020; color:#111; font-weight:bold; font-size:16px; padding:12px 28px; border-radius:8px; }
+    #confirmYes:hover { background:#e6c100; }
+    #confirmNo  { background:#2a2a2a; color:#ccc; font-size:16px; padding:12px 24px; border-radius:8px; }
+    #confirmNo:hover { background:#3a3a3a; }
+
+    /* Buscador de productos custom */
+    .product-search-wrap { position:relative; min-width:260px; }
+    .product-search-wrap input {
+      width: 100%;
+      font-size: 15px;
+      padding: 10px 12px;
+    }
+    #product-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; right: 0;
+      background: #1e1e1e;
+      border: 1px solid #f5d020;
+      border-radius: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,.6);
+    }
+    #product-dropdown.open { display: block; }
+    .pd-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #e0e0e0;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .pd-item:last-child { border-bottom: none; }
+    .pd-item:hover, .pd-item.active { background: #2a2a2a; color: #fff; }
+    .pd-item .pd-price { color: #f5d020; font-size: 13px; white-space:nowrap; }
+    .pd-empty { padding:10px 14px; color:#888; font-size:13px; }
+
+    /* ── Tarjetas historial mobile ───────────────────────────── */
+    .history-card {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: none; /* solo visible en mobile */
+    }
+    .hc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .hc-total { font-size: 22px; font-weight: 800; color: #f5d020; }
+    .hc-id    { font-size: 12px; color: #666; }
+    .hc-fecha { font-size: 13px; color: #aaa; margin-bottom: 8px; }
+    .hc-row   { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 4px 0; border-top: 1px solid #222; }
+    .hc-row .k { color: #888; }
+    .hc-row .v { color: #e0e0e0; text-align: right; word-break: break-all; }
+    .hc-even  { background: #1e1600; border-color: #2e2200; }
+
+    /* ── Filtros historial ───────────────────────────────────── */
+    .filters-bar { background:rgba(245,208,32,0.05); border:1px solid rgba(245,208,32,0.2); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+    .filters-bar .filter-row { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+    .fg { display:flex; flex-direction:column; gap:4px; }
+    .fg label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.4px; }
+    .fg input { padding:7px 10px; font-size:13px; background:#1a1a1a; border:1px solid #333; border-radius:6px; color:#f0f0f0; }
+    .fg input:focus { border-color:#f5d020; }
+    .fg input[type=date] { color-scheme:dark; }
+    #f-results { font-size:12px; color:#888; margin-top:8px; }
+    .btn-filter { background:#f5d020; color:#111; font-weight:700; padding:7px 14px; font-size:13px; border-radius:6px; }
+    .btn-filter-clear { background:#2a2a2a; color:#ccc; padding:7px 12px; font-size:13px; border-radius:6px; }
+    .btn-csv { background:#1a3a22; color:#5dde7a; border:1px solid #2a6a3a; padding:7px 12px; font-size:13px; border-radius:6px; }
+
+    /* ── Nota de crédito badge ───────────────────────────────── */
+    .badge-nc { display:inline-block; background:#1a1a3a; color:#9a9aff; font-size:10px; padding:2px 6px; border-radius:8px; border:1px solid #3a3a7a; margin-left:4px; }
+
+    /* ── Settings panel ──────────────────────────────────────── */
+    .settings-field { margin-bottom:12px; }
+    .settings-field label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.4px; display:block; margin-bottom:5px; }
+    .settings-field input { width:100%; padding:9px 12px; font-size:14px; background:#1a1a1a; border:1px solid #333; border-radius:6px; color:#f0f0f0; }
+    .settings-field input:focus { border-color:#f5d020; }
+    #pass-status { min-height:18px; font-size:13px; margin-top:8px; }
+
+    /* ── Comparativa ─────────────────────────────────────────── */
+    .compare-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+    .cmp-card { flex:1; min-width:120px; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:10px; padding:10px 14px; }
+    .cmp-label { font-size:11px; color:#888; margin-bottom:4px; }
+    .cmp-val { font-size:18px; font-weight:700; color:#f5d020; }
+    .cmp-diff-pos { color:#5dde7a; font-size:12px; margin-top:2px; }
+    .cmp-diff-neg { color:#ff6b6b; font-size:12px; margin-top:2px; }
+    .cmp-diff-neu { color:#888; font-size:12px; margin-top:2px; }
+
+    /* ── Mobile responsive ───────────────────────────────────── */
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .header h1 { font-size: 16px; }
+      .header img { width: 36px; height: 36px; }
+
+      .add-form { flex-direction:column; align-items:stretch; padding:14px; gap:12px; }
+      .product-search-wrap { min-width:unset; width:100%; }
+      .form-group { width:100%; }
+      .form-group input { width:100%; font-size:20px; }
+      #addBtn { width:100%; padding:14px; font-size:16px; }
+
+      .cart-bar { gap:8px; }
+      .cart-bar .pill { font-size:13px; padding:6px 10px; }
+      #checkoutBtn { width:100%; padding:14px; font-size:16px; margin-top:4px; }
+      #clearBtn { width:100%; }
+
+      /* Ocultar tabla historial, mostrar tarjetas */
+      #history-table-wrap { display: none; }
+      .history-card { display: block; }
+
+      /* Carrito: tabla normal pero más compacta */
+      th, td { padding:7px 6px; font-size:12px; }
+
+      .confirm-btns { flex-direction:column; }
+      #confirmYes, #confirmNo { width:100%; }
+      #confirm-card { padding:24px 20px; }
+      #drawer { width:85vw; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div id="login-screen">
+    <div id="login-card">
+      <img src="/logo.png" alt="Logo La Bota" />
+      <h2>MERCADITO LA BOTA</h2>
+      <p>Ingresá la contraseña para continuar</p>
+      <input id="password" type="password" placeholder="Contraseña" />
+      <button id="loginBtn" type="button">Ingresar</button>
+      <div id="login-error"></div>
+    </div>
+  </div>
+
+  <!-- Drawer overlay -->
+  <div id="drawer-overlay"></div>
+
+  <!-- Drawer lateral -->
+  <div id="drawer">
+    <div class="drawer-header">
+      <h2>☰ Menú</h2>
+      <button id="drawerClose">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-menu-item" id="menu-resumen">
+        <span class="icon">📊</span>
+        <span>Resumen del mes</span>
+      </div>
+      <div id="resumen-panel">
+        <div id="resumen-mes" class="stats-grid"></div>
+        <canvas id="grafico-mes" height="120" style="max-width:100%;"></canvas>
+      </div>
+
+      <!-- Comparativa mes anterior -->
+      <div class="drawer-menu-item" id="menu-compare">
+        <span class="icon">📈</span>
+        <span>Comparativa meses</span>
+      </div>
+      <div id="compare-panel" style="display:none;padding-top:4px;">
+        <div id="compare-content" class="compare-grid"></div>
+      </div>
+
+      <!-- Historial de cliente -->
+      <div class="drawer-menu-item" id="menu-cliente-hist">
+        <span class="icon">👤</span>
+        <span>Historial de cliente</span>
+      </div>
+      <div id="cliente-hist-panel" style="display:none;padding-top:8px;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input id="ch-query" type="text" placeholder="CUIT o Razón Social" style="flex:1;padding:8px 12px;font-size:13px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#f0f0f0;" />
+          <button id="ch-search" style="background:#f5d020;color:#111;font-weight:700;padding:8px 14px;font-size:13px;border-radius:6px;">Buscar</button>
+        </div>
+        <div id="ch-results" style="font-size:13px;color:#ccc;"></div>
+      </div>
+
+      <!-- Configuración / Cambiar contraseña -->
+      <div class="drawer-menu-item" id="menu-settings">
+        <span class="icon">⚙️</span>
+        <span>Configuración</span>
+      </div>
+      <div id="settings-panel" style="display:none;padding-top:8px;">
+        <h3 style="color:#f5d020;font-size:14px;margin:0 0 12px;border-bottom:1px solid #2a2a2a;padding-bottom:8px;">🔐 Cambiar contraseña</h3>
+        <div class="settings-field">
+          <label>Contraseña actual</label>
+          <input type="password" id="pass-current" placeholder="••••••" />
+        </div>
+        <div class="settings-field">
+          <label>Nueva contraseña</label>
+          <input type="password" id="pass-new" placeholder="Mínimo 4 caracteres" />
+        </div>
+        <div class="settings-field">
+          <label>Confirmar nueva</label>
+          <input type="password" id="pass-confirm" placeholder="Repetir contraseña" />
+        </div>
+        <button id="pass-save" style="background:#f5d020;color:#111;font-weight:700;width:100%;padding:10px;font-size:14px;border-radius:8px;">Guardar contraseña</button>
+        <div id="pass-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="header">
+    <button id="hamburger" title="Menú">
+      <span></span><span></span><span></span>
+    </button>
+    <img src="/logo.png" alt="Logo" />
+    <h1>MERCADITO LA BOTA — Facturas Online</h1>
+  </div>
+
+  <div id="afip-alert">
+    ⚠️ <b id="afip-alert-msg">Hay ventas pendientes de envío a AFIP.</b>
+    <button id="retryBtn">Reintentar ahora</button>
+    <span id="retry-status" class="small"></span>
+  </div>
+
+  <!-- Modal de confirmación -->
+  <div id="confirm-modal">
+    <div id="confirm-card">
+      <h3>¿Confirmar facturación?</h3>
+      <p>Vas a emitir un comprobante por</p>
+      <span class="monto" id="confirm-total"></span>
+
+      <!-- Email del cliente (siempre visible) -->
+      <div style="margin-bottom:14px;text-align:left;">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">📧 Enviar factura por email (opcional)</label>
+        <input id="cliente-email" type="email" inputmode="email" placeholder="cliente@email.com"
+          style="width:100%;padding:9px 12px;font-size:14px;background:#1e1e1e;border:1px solid #333;border-radius:6px;color:#f0f0f0;" />
+      </div>
+
+      <!-- Datos opcionales del cliente -->
+      <div id="cliente-toggle" style="margin-bottom:14px;">
+        <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+                      background:rgba(245,208,32,0.12);border:1px solid rgba(245,208,32,0.4);
+                      border-radius:8px;padding:9px 16px;color:#f5d020;font-size:14px;font-weight:600;
+                      transition:background .15s;">
+          <input type="checkbox" id="tiene-cliente" style="width:16px;height:16px;accent-color:#f5d020;" />
+          ➕ Agregar datos del cliente
+        </label>
+      </div>
+      <div id="cliente-fields" style="display:none;background:#111;border:1px solid rgba(245,208,32,0.2);border-radius:10px;padding:14px 16px;margin-bottom:16px;text-align:left;">
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Tipo de Factura</label>
+          <div style="display:flex;gap:8px;">
+            <label style="flex:1;display:flex;align-items:center;gap:7px;background:#1a1a1a;border:1px solid #333;border-radius:7px;padding:8px 12px;cursor:pointer;font-size:13px;color:#ccc;" id="tipo-b-label">
+              <input type="radio" name="factura-tipo" id="tipo-b" value="B" checked style="accent-color:#f5d020;" />
+              <span><b style="color:#f5d020;">B</b> — Cons. Final</span>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:7px;background:#1a1a1a;border:1px solid #333;border-radius:7px;padding:8px 12px;cursor:pointer;font-size:13px;color:#ccc;" id="tipo-a-label">
+              <input type="radio" name="factura-tipo" id="tipo-a" value="A" style="accent-color:#f5d020;" />
+              <span><b style="color:#f5d020;">A</b> — Resp. Inscripto</span>
+            </label>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">CUIT del cliente</label>
+          <input id="cliente-cuit" type="text" inputmode="numeric" placeholder="20-12345678-9"
+            style="width:100%;padding:9px 12px;font-size:14px;background:#1e1e1e;border:1px solid #333;border-radius:6px;color:#f0f0f0;" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Razón Social</label>
+          <input id="cliente-razon" type="text" placeholder="Empresa S.A."
+            style="width:100%;padding:9px 12px;font-size:14px;background:#1e1e1e;border:1px solid #333;border-radius:6px;color:#f0f0f0;" />
+        </div>
+      </div>
+
+      <div class="confirm-btns">
+        <button id="confirmYes">✅ Sí, facturar</button>
+        <button id="confirmNo">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario de carga -->
+  <div class="add-form">
+    <div class="form-group">
+      <label>Nombre del producto</label>
+      <div class="product-search-wrap">
+        <input id="product-search" type="text" placeholder="🔍 Buscar o dejar vacío..." autocomplete="off" />
+        <div id="product-dropdown"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="price">Monto a facturar</label>
+      <input id="price" type="text" inputmode="decimal" placeholder="$ 0" />
+    </div>
+    <button id="addBtn">➕ Agregar al ticket</button>
+  </div>
+
+  <!-- Barra del carrito -->
+  <div class="cart-bar">
+    <span class="pill">Items: <b id="itemsCount">0</b></span>
+    <span class="pill">Total: <b id="total">$0</b></span>
+    <button id="checkoutBtn">🧾 Cerrar venta (AFIP)</button>
+    <button id="clearBtn">🗑 Vaciar</button>
+  </div>
+
+  <div id="status" class="small"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cant</th>
+          <th>Unit</th>
+          <th>Subtotal</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="cartBody"></tbody>
+    </table>
+  </div>
+
+  <h2 style="margin-top:22px">Historial</h2>
+
+  <!-- Barra de filtros -->
+  <div class="filters-bar">
+    <div class="filter-row">
+      <div class="fg">
+        <label>Desde</label>
+        <input type="date" id="f-from" />
+      </div>
+      <div class="fg">
+        <label>Hasta</label>
+        <input type="date" id="f-to" />
+      </div>
+      <div class="fg">
+        <label>Cliente / CUIT</label>
+        <input type="text" id="f-cliente" placeholder="Nombre o CUIT" style="min-width:160px;" />
+      </div>
+      <div class="fg">
+        <label>CAE</label>
+        <input type="text" id="f-cae" placeholder="Parcial" style="max-width:130px;" />
+      </div>
+      <div class="fg">
+        <label>Monto mín.</label>
+        <input type="number" id="f-min" placeholder="0" style="max-width:100px;" />
+      </div>
+      <div class="fg">
+        <label>Monto máx.</label>
+        <input type="number" id="f-max" placeholder="∞" style="max-width:100px;" />
+      </div>
+      <button class="btn-filter" id="f-apply">🔍 Filtrar</button>
+      <button class="btn-filter-clear" id="f-clear">✕</button>
+      <button class="btn-csv" id="f-export-csv">⬇️ CSV</button>
+    </div>
+    <div id="f-results"></div>
+  </div>
+
+  <div class="table-wrap" id="history-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fecha</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>AFIP</th>
+          <th>CAE</th>
+          <th>Ticket/QR</th>
+          <th>Factura</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+  </div>
+  <div id="historyCards"></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const elProductSearch = $('product-search');
+  const elProductDropdown = $('product-dropdown');
+  const elPrice = $('price');
+  let selectedProduct = null; // { name, price }
+  const elStatus = $('status');
+  const elCartBody = $('cartBody');
+  const elHistoryBody = $('historyBody');
+  const elItemsCount = $('itemsCount');
+  const elTotal = $('total');
+  const btnAdd = $('addBtn');
+  const btnCheckout = $('checkoutBtn');
+  const btnClear = $('clearBtn');
+
+  let products = [];
+  let graficoMes = null;
+
+  function setStatus(msg, kind) {
+    elStatus.className = (kind === 'err') ? 'err' : (kind === 'ok' ? 'ok' : 'small');
+    elStatus.textContent = msg || '';
+  }
+
+  function money(n) {
+    const x = Number(n || 0);
+    return '$' + x.toFixed(2);
+  }
+
+  async function apiGet(url) {
+    const r = await fetch(url, { method: 'GET' });
+    const j = await r.json().catch(() => null);
+    if (!j || j.ok === false) throw new Error((j && (j.error || j.message)) || ('HTTP ' + r.status));
+    return j;
+  }
+
+  async function apiPost(url, body) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    const j = await r.json().catch(() => null);
+    if (!j || j.ok === false) throw new Error((j && (j.error || j.message)) || ('HTTP ' + r.status));
+    return j;
+  }
+
+  async function loadProducts() {
+    const j = await apiGet('/api/products');
+    products = j.products || [];
+  }
+
+  // ── Buscador de productos ─────────────────────────────────
+  function renderDropdown(query) {
+    const q = (query || '').toLowerCase().trim();
+    const filtered = q
+      ? products.filter(p => p.name.toLowerCase().includes(q))
+      : products.slice(0, 40);
+
+    elProductDropdown.innerHTML = '';
+
+    // Opción por defecto siempre visible si no hay texto
+    if (!q) {
+      const def = document.createElement('div');
+      def.className = 'pd-item';
+      def.innerHTML = '<span>Kiosco y Libreria</span>';
+      def.addEventListener('mousedown', () => selectProduct(null));
+      elProductDropdown.appendChild(def);
+    }
+
+    if (filtered.length === 0 && q) {
+      const empty = document.createElement('div');
+      empty.className = 'pd-empty';
+      empty.textContent = 'Sin resultados — se usará "' + (q || 'Kiosco y Libreria') + '"';
+      elProductDropdown.appendChild(empty);
+    }
+
+    for (const p of filtered) {
+      const item = document.createElement('div');
+      item.className = 'pd-item';
+      item.innerHTML = `<span>${escapeHtml(p.name)}</span>${p.price ? '<span class="pd-price">$' + Number(p.price).toLocaleString('es-AR') + '</span>' : ''}`;
+      item.addEventListener('mousedown', () => selectProduct(p));
+      elProductDropdown.appendChild(item);
+    }
+
+    elProductDropdown.classList.add('open');
+  }
+
+  function selectProduct(p) {
+    selectedProduct = p;
+    elProductSearch.value = p ? p.name : 'Kiosco y Libreria';
+    elProductDropdown.classList.remove('open');
+    if (p && p.price) {
+      elPrice.value = String(p.price);
+    }
+    elPrice.focus();
+  }
+
+  elProductSearch.addEventListener('focus', () => renderDropdown(elProductSearch.value));
+  elProductSearch.addEventListener('input', () => {
+    selectedProduct = null;
+    renderDropdown(elProductSearch.value);
+  });
+  elProductSearch.addEventListener('blur', () => {
+    setTimeout(() => elProductDropdown.classList.remove('open'), 150);
+  });
+  // Cerrar con Escape
+  elProductSearch.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') elProductDropdown.classList.remove('open');
+  });
+
+  async function loadCart() {
+    const j = await apiGet('/api/cart');
+    const items = j.items || [];
+    const total = Number(j.total || 0);
+
+    elItemsCount.textContent = String(items.reduce((a, it) => a + (Number(it.qty) || 0), 0));
+    elTotal.textContent = money(total);
+
+    elCartBody.innerHTML = '';
+    for (const it of items) {
+      const tr = document.createElement('tr');
+      const sub = (Number(it.qty) || 0) * (Number(it.unit_price) || 0);
+
+      tr.innerHTML = `
+        <td>${escapeHtml(it.product_name)}</td>
+        <td>${Number(it.qty || 0)}</td>
+        <td>${money(it.unit_price)}</td>
+        <td>${money(sub)}</td>
+        <td><button data-id="${it.id}">Quitar</button></td>
+      `;
+
+      tr.querySelector('button').addEventListener('click', async (ev) => {
+        try {
+          const id = Number(ev.target.getAttribute('data-id'));
+          await apiPost('/api/cart/remove', { id });
+          setStatus('Item quitado.', 'ok');
+          await loadCart();
+        } catch (e) {
+          setStatus('Error quitando item: ' + e.message, 'err');
+        }
+      });
+
+      elCartBody.appendChild(tr);
+    }
+  }
+
+  let allHistory = [];
+
+  function renderHistory(hist) {
+    elHistoryBody.innerHTML = '';
+    const cardsEl = document.getElementById('historyCards');
+    if (cardsEl) cardsEl.innerHTML = '';
+
+    for (const h of hist) {
+      const tr = document.createElement('tr');
+
+      const link = h.ticket_url
+        ? `<a href="${h.ticket_url}" target="_blank" rel="noopener">Ticket</a>`
+        : (h.qr_url ? `<a href="${h.qr_url}" target="_blank" rel="noopener">QR</a>` : '—');
+
+      const letraMap = { 1: 'A', 6: 'B', 11: 'C' };
+      const letra = letraMap[h.cbte_tipo] || 'B';
+      const letraStyle = letra === 'A' ? 'color:#ff9a3c;font-weight:700;' : 'color:#f5d020;font-weight:700;';
+      const clienteInfo = h.cliente_razon_social
+        ? `<div style="font-size:10px;color:#aaa;margin-top:2px;">${escapeHtml(h.cliente_razon_social)}</div>` : '';
+
+      const ncBadge = h.nc_status === 'ok'
+        ? `<span class="badge-nc" title="NC CAE: ${escapeHtml(h.nc_cae||'')}">✓ NC</span>` : '';
+
+      const facturaLink = `<a href="/api/invoice/${h.id}" target="_blank" rel="noopener" style="${letraStyle}">📄 F${letra}</a>
+        <button onclick="sendInvoiceEmail(${h.id})" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;" title="Enviar por email">📧</button>
+        ${h.nc_status !== 'ok' && h.cae ? `<button onclick="emitirNC(${h.id})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;color:#ff9a3c;" title="Emitir nota de crédito">🚫</button>` : ncBadge}
+        ${clienteInfo}`;
+
+      const status = h.afip_status || 'ok';
+      let afipBadge;
+      if (status === 'pending') {
+        afipBadge = `<span class="badge-pending" title="${escapeHtml(h.afip_error || 'Pendiente de envío')}">⏳ PENDIENTE</span>`;
+        tr.style.background = '#2a1500';
+      } else if (h.cae) {
+        afipBadge = `<span class="badge-ok">✅ OK</span>`;
+      } else {
+        afipBadge = `<span class="small">—</span>`;
+      }
+
+      tr.innerHTML = `
+        <td>${h.id}</td>
+        <td>${escapeHtml(h.created_at || '')}</td>
+        <td>${h.items_count}</td>
+        <td>${money(h.total)}</td>
+        <td>${afipBadge}</td>
+        <td>${escapeHtml(h.cae || '')}</td>
+        <td>${link}</td>
+        <td>${facturaLink}</td>
+      `;
+      elHistoryBody.appendChild(tr);
+
+      if (cardsEl) {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        const caeShort = h.cae ? ('...' + h.cae.slice(-8)) : '—';
+        card.innerHTML = `
+          <div class="hc-top">
+            <div>
+              <div class="hc-total">${money(h.total)}</div>
+              <div class="hc-id">#${h.id} &nbsp;·&nbsp; <span style="${letraStyle}">Factura ${letra}</span>${ncBadge}</div>
+            </div>
+            <div>${afipBadge}</div>
+          </div>
+          <div class="hc-fecha">${escapeHtml(h.created_at || '')}</div>
+          ${h.cliente_razon_social ? `<div class="hc-row"><span class="k">Cliente</span><span class="v">${escapeHtml(h.cliente_razon_social)}</span></div>` : ''}
+          ${h.cliente_cuit ? `<div class="hc-row"><span class="k">CUIT</span><span class="v">${escapeHtml(h.cliente_cuit)}</span></div>` : ''}
+          <div class="hc-row"><span class="k">Items</span><span class="v">${h.items_count}</span></div>
+          <div class="hc-row"><span class="k">CAE</span><span class="v">${escapeHtml(caeShort)}</span></div>
+          <div class="hc-row" style="gap:14px;justify-content:flex-start;border-top:1px solid #222;padding-top:6px;margin-top:4px;">
+            ${link !== '—' ? `<span>${link}</span>` : ''}
+            <span><a href="/api/invoice/${h.id}" target="_blank" rel="noopener" style="${letraStyle}">📄 Ver Factura ${letra}</a></span>
+          </div>
+        `;
+        cardsEl.appendChild(card);
+      }
+    }
+  }
+
+  function applyFilters() {
+    const from    = document.getElementById('f-from').value;
+    const to      = document.getElementById('f-to').value;
+    const cliente = (document.getElementById('f-cliente').value || '').toLowerCase().trim();
+    const cae     = (document.getElementById('f-cae').value || '').trim();
+    const minV    = parseFloat(document.getElementById('f-min').value) || 0;
+    const maxV    = parseFloat(document.getElementById('f-max').value) || Infinity;
+
+    const filtered = allHistory.filter(h => {
+      if (from && (h.created_at || '').slice(0,10) < from) return false;
+      if (to   && (h.created_at || '').slice(0,10) > to)   return false;
+      if (cliente && !(
+        (h.cliente_razon_social || '').toLowerCase().includes(cliente) ||
+        (h.cliente_cuit || '').includes(cliente)
+      )) return false;
+      if (cae && !(h.cae || '').includes(cae)) return false;
+      if (minV > 0 && h.total < minV) return false;
+      if (maxV < Infinity && h.total > maxV) return false;
+      return true;
+    });
+
+    renderHistory(filtered);
+
+    const totalFilt = filtered.reduce((a, h) => a + h.total, 0);
+    document.getElementById('f-results').textContent =
+      `${filtered.length} resultado(s) · Total: ${money(totalFilt)}`;
+  }
+
+  async function loadHistory() {
+    const j = await apiGet('/api/history');
+    allHistory = j.history || [];
+    renderHistory(allHistory);
+    document.getElementById('f-results').textContent =
+      `${allHistory.length} ventas cargadas · Total: ${money(allHistory.reduce((a,h)=>a+h.total,0))}`;
+  }
+
+  async function checkPending() {
+    try {
+      const j = await fetch('/api/afip/pending').then(r => r.json());
+      const alert = document.getElementById('afip-alert');
+      const msg   = document.getElementById('afip-alert-msg');
+      if (j.ok && j.count > 0) {
+        msg.textContent = `⚠️ Hay ${j.count} venta(s) pendiente(s) de envío a AFIP.`;
+        alert.style.display = 'flex';
+      } else {
+        alert.style.display = 'none';
+      }
+    } catch (_) {}
+  }
+
+  async function loadMonthStats() {
+    const j = await apiGet('/api/stats/month');
+
+    const resumen = $('resumen-mes');
+    const canvas = $('grafico-mes');
+    if (!resumen || !canvas) return;
+
+    const totalMes = Number(j.totalMes || 0);
+    const ventasMes = Number(j.ventasMes || 0);
+    const ticketPromedio = Number(j.ticketPromedio || 0);
+    const totalHoy = Number(j.totalHoy || 0);
+    const ventasHoy = Number(j.ventasHoy || 0);
+    const dias = Array.isArray(j.dias) ? j.dias : [];
+
+    resumen.innerHTML = `
+      <div class="stat-card">
+        <div class="label">💰 Total del mes</div>
+        <div class="value">${money(totalMes)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">🧾 Ventas del mes</div>
+        <div class="value">${ventasMes}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">📊 Ticket promedio</div>
+        <div class="value">${money(ticketPromedio)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">📅 Total de hoy</div>
+        <div class="value">${money(totalHoy)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">🛒 Ventas de hoy</div>
+        <div class="value">${ventasHoy}</div>
+      </div>
+    `;
+
+    const labels = dias.map(d => d.day);
+    const valores = dias.map(d => Number(d.total || 0));
+
+    if (graficoMes) {
+      graficoMes.destroy();
+    }
+
+    graficoMes = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Facturación diaria',
+          data: valores,
+          tension: 0.3,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: true
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: function(value) {
+                return '$' + Number(value).toLocaleString('es-AR');
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function parsePrice(input) {
+    let s = String(input || '').trim();
+    if (!s) return NaN;
+    s = s.replace(/\$/g, '').trim().replace(/\./g, '').replace(',', '.');
+    return Number(s);
+  }
+
+  btnAdd.addEventListener('click', async () => {
+    try {
+      const productName = (selectedProduct && selectedProduct.name)
+        || elProductSearch.value.trim()
+        || 'Kiosco y Libreria';
+      const price = parsePrice(elPrice.value);
+
+      if (!Number.isFinite(price) || price <= 0) throw new Error('Ingresá un monto válido.');
+
+      await apiPost('/api/cart/add', {
+        product_name: productName,
+        qty: 1,
+        unit_price: price
+      });
+
+      setStatus('✅ ' + productName + ' — ' + money(price) + ' agregado.', 'ok');
+      elPrice.value = '';
+      elProductSearch.value = '';
+      selectedProduct = null;
+      elPrice.focus();
+
+      await loadCart();
+    } catch (e) {
+      setStatus('Error: ' + e.message, 'err');
+    }
+  });
+
+  // Enter en el campo precio dispara Agregar
+  elPrice.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') btnAdd.click();
+  });
+
+  btnClear.addEventListener('click', async () => {
+    try {
+      await apiPost('/api/cart/clear', {});
+      setStatus('Carrito vaciado.', 'ok');
+      await loadCart();
+    } catch (e) {
+      setStatus('Error vaciando carrito: ' + e.message, 'err');
+    }
+  });
+
+  // Checkout con modal de confirmación
+  btnCheckout.addEventListener('click', async () => {
+    try {
+      const cartData = await apiGet('/api/cart');
+      if (!cartData.items || cartData.items.length === 0) {
+        setStatus('El ticket está vacío.', 'err');
+        return;
+      }
+      const total = Number(cartData.total || 0);
+      $('confirm-total').textContent = money(total);
+      $('confirm-modal').classList.add('show');
+    } catch (e) {
+      setStatus('Error: ' + e.message, 'err');
+    }
+  });
+
+  // Mostrar/ocultar campos del cliente en el modal
+  $('tiene-cliente').addEventListener('change', function() {
+    $('cliente-fields').style.display = this.checked ? 'block' : 'none';
+  });
+
+  $('confirmNo').addEventListener('click', () => {
+    $('confirm-modal').classList.remove('show');
+    $('tiene-cliente').checked = false;
+    $('cliente-fields').style.display = 'none';
+    $('cliente-cuit').value = '';
+    $('cliente-razon').value = '';
+    document.getElementById('tipo-b').checked = true;
+  });
+
+  $('confirmYes').addEventListener('click', async () => {
+    $('confirm-modal').classList.remove('show');
+
+    // Leer datos opcionales del cliente
+    const tieneCliente = $('tiene-cliente').checked;
+    const factTipo     = tieneCliente && document.getElementById('tipo-a').checked ? 'A' : 'B';
+    const clienteCuit  = tieneCliente ? ($('cliente-cuit').value  || '').trim() : '';
+    const clienteRazon = tieneCliente ? ($('cliente-razon').value || '').trim() : '';
+    const clienteEmail = ($('cliente-email').value || '').trim();
+
+    // Reset campos para la próxima vez
+    $('tiene-cliente').checked = false;
+    $('cliente-fields').style.display = 'none';
+    $('cliente-cuit').value = '';
+    $('cliente-razon').value = '';
+    $('cliente-email').value = '';
+    document.getElementById('tipo-b').checked = true;
+
+    try {
+      setStatus('Emitiendo comprobante...', '');
+      const body = {};
+      if (tieneCliente) {
+        body.cliente = { tipo: factTipo, cuit: clienteCuit || null, razon_social: clienteRazon || null };
+      }
+      const j = await apiPost('/api/checkout', body);
+      if (j.afip && j.afip.ok) {
+        setStatus('✅ Venta cerrada con AFIP. CAE: ' + (j.afip.cae || ''), 'ok');
+      } else if (j.afip && j.afip.pending) {
+        setStatus('⚠️ Venta guardada. AFIP no respondió — se reintentará automáticamente.', '');
+      } else {
+        setStatus('Venta guardada (sin módulo AFIP).', 'ok');
+      }
+
+      // Enviar factura por email si se ingresó uno
+      if (clienteEmail && clienteEmail.includes('@') && j.sale_id) {
+        try {
+          const er = await fetch(`/api/invoice/${j.sale_id}/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: clienteEmail })
+          }).then(r => r.json());
+          if (er.ok) {
+            setStatus(`✅ Factura enviada a ${clienteEmail}`, 'ok');
+          } else {
+            setStatus('⚠️ Factura OK pero no se pudo enviar email: ' + (er.error || ''), '');
+          }
+        } catch (_) {}
+      }
+
+      await loadCart();
+      await loadHistory();
+      await checkPending();
+      // Si el panel de resumen está visible, actualizar; si no, marcar para recargar
+      if (document.getElementById('resumen-panel').style.display === 'block') {
+        await loadMonthStats();
+      } else {
+        resumenCargado = false;
+      }
+    } catch (e) {
+      setStatus('Error cerrando venta: ' + e.message, 'err');
+    }
+  });
+
+  // Enviar factura por email desde historial
+  window.sendInvoiceEmail = async function(saleId) {
+    const email = window.prompt('Ingresá el email del cliente:');
+    if (!email || !email.includes('@')) return;
+    try {
+      const r = await fetch(`/api/invoice/${saleId}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      }).then(res => res.json());
+      if (r.ok) {
+        alert(`✅ Factura enviada a ${email}`);
+      } else {
+        alert('Error enviando email: ' + (r.error || 'Error desconocido'));
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
+  // ── Filtros historial ─────────────────────────────────────────────
+  document.getElementById('f-apply').addEventListener('click', applyFilters);
+  document.getElementById('f-clear').addEventListener('click', () => {
+    ['f-from','f-to','f-cliente','f-cae','f-min','f-max'].forEach(id => { document.getElementById(id).value = ''; });
+    renderHistory(allHistory);
+    document.getElementById('f-results').textContent = `${allHistory.length} ventas cargadas · Total: ${money(allHistory.reduce((a,h)=>a+h.total,0))}`;
+  });
+  // Enter en cualquier filtro dispara la búsqueda
+  ['f-from','f-to','f-cliente','f-cae','f-min','f-max'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+  });
+
+  // ── Exportar CSV ──────────────────────────────────────────────────
+  document.getElementById('f-export-csv').addEventListener('click', () => {
+    const data = allHistory; // exporta todo, no solo lo filtrado
+    const rows = [
+      ['ID','Fecha','Items','Total','AFIP','CAE','Tipo','CUIT Cliente','Razon Social','NC CAE'],
+      ...data.map(h => [
+        h.id, h.created_at, h.items_count, h.total.toFixed(2),
+        h.afip_status, h.cae||'', (h.cbte_tipo===1?'A':'B'),
+        h.cliente_cuit||'', h.cliente_razon_social||'', h.nc_cae||''
+      ])
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ventas-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // ── Nota de crédito ───────────────────────────────────────────────
+  window.emitirNC = async function(saleId) {
+    if (!confirm(`¿Emitir Nota de Crédito para anular la venta #${saleId}?\nEsta acción es irreversible.`)) return;
+
+    const email = (window.prompt('📧 Email del cliente (opcional — Enter para omitir):') || '').trim();
+
+    try {
+      const body = {};
+      if (email && email.includes('@')) body.email = email;
+
+      const r = await fetch(`/api/sales/${saleId}/nota-credito`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(res => res.json());
+
+      if (r.ok) {
+        let msg = `✅ Nota de Crédito emitida.\nCAE: ${r.nc.cae}`;
+        if (r.emailSent)        msg += `\n📧 Enviada a ${email}`;
+        else if (email)         msg += '\n⚠️ NC emitida pero no se pudo enviar el email.';
+        alert(msg);
+        await loadHistory();
+      } else {
+        alert('Error: ' + (r.error || 'Error desconocido'));
+      }
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Comparativa mes anterior ──────────────────────────────────────
+  let compareCargado = false;
+  document.getElementById('menu-compare').addEventListener('click', async () => {
+    const panel = document.getElementById('compare-panel');
+    const open = panel.style.display === 'block';
+    panel.style.display = open ? 'none' : 'block';
+    if (!open && !compareCargado) {
+      try {
+        const j = await apiGet('/api/stats/compare');
+        const money2 = n => '$'+Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const diff = (val, pct) => {
+          if (val === 0 && pct === null) return `<div class="cmp-diff-neu">Sin datos anteriores</div>`;
+          const arrow = val > 0 ? '▲' : val < 0 ? '▼' : '=';
+          const cls   = val > 0 ? 'cmp-diff-pos' : val < 0 ? 'cmp-diff-neg' : 'cmp-diff-neu';
+          return `<div class="${cls}">${arrow} ${pct !== null ? pct+'%' : ''} vs mes anterior</div>`;
+        };
+        document.getElementById('compare-content').innerHTML = `
+          <div style="width:100%;color:#888;font-size:12px;margin-bottom:6px;">
+            <b style="color:#f5d020">${j.mesActual}</b> vs <b style="color:#888">${j.mesAnterior}</b>
+          </div>
+          <div class="cmp-card">
+            <div class="cmp-label">💰 Facturación actual</div>
+            <div class="cmp-val">${money2(j.actual.total)}</div>
+            ${diff(j.diffTotal, j.pctTotal)}
+          </div>
+          <div class="cmp-card">
+            <div class="cmp-label">🧾 Ventas actuales</div>
+            <div class="cmp-val">${j.actual.ventas}</div>
+            ${diff(j.diffVentas, null)}
+          </div>
+          <div class="cmp-card">
+            <div class="cmp-label">📅 Mes anterior total</div>
+            <div class="cmp-val">${money2(j.anterior.total)}</div>
+            <div class="cmp-diff-neu">${j.anterior.ventas} ventas</div>
+          </div>`;
+        compareCargado = true;
+      } catch(e) {
+        document.getElementById('compare-content').innerHTML = `<div style="color:#ff6b6b;font-size:12px;">Error: ${e.message}</div>`;
+      }
+    }
+  });
+
+  // ── Historial de cliente ──────────────────────────────────────────
+  document.getElementById('menu-cliente-hist').addEventListener('click', () => {
+    const panel = document.getElementById('cliente-hist-panel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+  });
+
+  document.getElementById('ch-search').addEventListener('click', async () => {
+    const q = (document.getElementById('ch-query').value || '').trim();
+    if (!q) return;
+    const resultEl = document.getElementById('ch-results');
+    resultEl.textContent = 'Buscando...';
+    const matches = allHistory.filter(h =>
+      (h.cliente_razon_social||'').toLowerCase().includes(q.toLowerCase()) ||
+      (h.cliente_cuit||'').includes(q)
+    );
+    if (!matches.length) {
+      resultEl.innerHTML = '<span style="color:#888">Sin resultados</span>';
+      return;
+    }
+    const total = matches.reduce((a,h)=>a+h.total,0);
+    resultEl.innerHTML = `
+      <div style="margin-bottom:8px;color:#f5d020;font-weight:700;">${matches.length} facturas · Total: ${money(total)}</div>
+      ${matches.map(h=>`
+        <div style="padding:6px 0;border-bottom:1px solid #222;font-size:13px;">
+          <span style="color:#888">#${h.id}</span>
+          <span style="margin-left:8px;">${escapeHtml(h.created_at||'')}</span>
+          <span style="margin-left:8px;color:#f5d020;font-weight:700;">${money(h.total)}</span>
+          <span style="margin-left:8px;">${h.cae?'✅':'—'}</span>
+          ${h.ticket_url?`<a href="${h.ticket_url}" target="_blank" style="margin-left:8px;">Ticket</a>`:''}
+          <a href="/api/invoice/${h.id}" target="_blank" style="margin-left:8px;">Factura</a>
+        </div>`).join('')}`;
+  });
+
+  document.getElementById('ch-query').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('ch-search').click();
+  });
+
+  // ── Configuración / Cambiar contraseña ────────────────────────────
+  document.getElementById('menu-settings').addEventListener('click', () => {
+    const panel = document.getElementById('settings-panel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+  });
+
+  document.getElementById('pass-save').addEventListener('click', async () => {
+    const current = document.getElementById('pass-current').value;
+    const newPass  = document.getElementById('pass-new').value;
+    const confirm  = document.getElementById('pass-confirm').value;
+    const statusEl = document.getElementById('pass-status');
+    if (!current || !newPass || !confirm) { statusEl.innerHTML='<span style="color:#ff6b6b">Completá todos los campos</span>'; return; }
+    try {
+      const r = await apiPost('/api/settings/password', { current, newPass, confirmPass: confirm });
+      statusEl.innerHTML = '<span style="color:#5dde7a">✅ Contraseña actualizada</span>';
+      document.getElementById('pass-current').value = '';
+      document.getElementById('pass-new').value = '';
+      document.getElementById('pass-confirm').value = '';
+      // Actualizar contraseña local para no perder sesión
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('auth', 'ok');
+      }
+    } catch(e) {
+      statusEl.innerHTML = `<span style="color:#ff6b6b">${e.message}</span>`;
+    }
+  });
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  // Menú hamburguesa
+  let resumenCargado = false;
+
+  function openDrawer() {
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawer-overlay').classList.add('open');
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+  }
+
+  document.getElementById('hamburger').addEventListener('click', openDrawer);
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+  document.getElementById('menu-resumen').addEventListener('click', async () => {
+    const panel = document.getElementById('resumen-panel');
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen && !resumenCargado) {
+      await loadMonthStats();
+      resumenCargado = true;
+    }
+  });
+
+  // Botón reintentar AFIP manualmente
+  document.getElementById('retryBtn').addEventListener('click', async () => {
+    const retryStatus = document.getElementById('retry-status');
+    try {
+      retryStatus.textContent = 'Reintentando...';
+      const j = await fetch('/api/afip/retry-pending', { method: 'POST' }).then(r => r.json());
+      if (j.processed > 0) {
+        retryStatus.textContent = `✅ ${j.processed} venta(s) enviada(s) OK`;
+      } else if (j.last_error) {
+        const shortErr = String(j.last_error).replace(/\s+/g, ' ').slice(0, 160);
+        retryStatus.textContent = `Sin cambios (${shortErr})`;
+      } else {
+        retryStatus.textContent = 'Sin cambios (AFIP sigue sin responder)';
+      }
+      await loadHistory();
+      await checkPending();
+    } catch (e) {
+      retryStatus.textContent = 'Error: ' + e.message;
+    }
+  });
+
+  async function boot() {
+    try {
+      setStatus('Cargando...', '');
+      await apiGet('/api/health');
+      await loadProducts();
+      await loadCart();
+      await loadHistory();
+      await checkPending();
+      setStatus('OK', 'ok');
+
+      // ── SSE: recibir ventas nuevas de otros dispositivos en tiempo real ──
+      try {
+        const evtSource = new EventSource('/api/events');
+        evtSource.onmessage = async function(e) {
+          try {
+            const d = JSON.parse(e.data);
+            if (d.type === 'new_sale') {
+              await loadHistory();
+              await checkPending();
+            }
+          } catch (_) {}
+        };
+        // Si se cae la conexión SSE, el navegador la reconecta automáticamente.
+        // Igual mantenemos un polling de respaldo cada 30s por si SSE no está disponible.
+      } catch (_) {}
+
+      // Polling de respaldo: revisar pendientes y actualizar historial cada 30s
+      setInterval(async () => {
+        await checkPending();
+        await loadHistory();
+      }, 30 * 1000);
+    } catch (e) {
+      setStatus('Error inicializando: ' + e.message, 'err');
+    }
+  }
+
+  boot();
+})();
+</script>
+
+<script>
+  async function checkLogin() {
+    const pass = document.getElementById("password").value;
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+      }).then(res => res.json());
+      if (r.ok) {
+        localStorage.setItem("auth", "ok");
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("login-error").textContent = "";
+      } else {
+        document.getElementById("login-error").textContent = r.error || "Contraseña incorrecta";
+      }
+    } catch(e) {
+      document.getElementById("login-error").textContent = "Error de conexión";
+    }
+  }
+
+  document.getElementById("loginBtn").addEventListener("click", checkLogin);
+  document.getElementById("password").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") checkLogin();
+  });
+
+  if (localStorage.getItem("auth") === "ok") {
+    document.getElementById("login-screen").style.display = "none";
+  }
+</script>
+</body>
+</html>
